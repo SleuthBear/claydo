@@ -1,8 +1,9 @@
 package claydo
 
+import "base:sanitizer"
 import "base:intrinsics"
 import "base:runtime"
-import "core:mem"
+import "core:mem/virtual"
 
 // NOTE -- TYPES --
 Color :: [4]f32
@@ -16,7 +17,7 @@ Padding :: struct {
 }
 Sizing :: struct {
 	width, height: Sizing_Axis,
-	type: Sizing_Type,
+	width_type, height_type: Sizing_Type,
 }
 Sizing_Type :: enum {
 	FIT,
@@ -88,7 +89,7 @@ Floating_Element_Config :: struct {
 	parent_id: u32,
 	z_idx: i16,
 	attach_points: Floating_Attach_Points,
-	pointer_capture_mode: Pointer_Capture_Mode,
+	cursor_capture_mode: Pointer_Capture_Mode,
 	attach_to: Floating_Attach_To_Element,
 	clip_to: Floating_Clip_To_Element,
 }
@@ -134,7 +135,7 @@ Custom_Render_Data :: struct {
 	corner_radius: Corner_Radius,
 	data: rawptr
 }
-Scroll_Render_Data :: struct {
+Clip_Render_Data :: struct {
 	horizontal: bool,
 	vertical: bool,
 }
@@ -148,16 +149,26 @@ Render_Data :: union {
 	Rectangle_Render_Data,
 	Image_Render_Data,
 	Custom_Render_Data,
-	Scroll_Render_Data,
-	Border_Render_Data
+	Border_Render_Data,
+	Clip_Render_Data,
 }
 Render_Command :: struct {
 	bounding_box: Bounding_Box,
 	render_data: Render_Data,
-	user_data: rawptr,
+	user_ptr: rawptr,
 	id: u32,
 	z_idx: i16,
-	// No need for command type, as we can switch on the type of Render_Data
+	type: Render_Command_Type,
+}
+Render_Command_Type :: enum {
+	NONE,
+	RECTANGLE,
+	BORDER,
+	TEXT,
+	IMAGE,
+	SCISSOR_START,
+	SCISSOR_END,
+	CUSTOM,
 }
 Scroll_Container_Data :: struct {
 	scroll_position: ^[2]f32,
@@ -283,7 +294,7 @@ Text_Element_Data :: struct {
 	text: string,
 	preferred_dimensions: [2]f32,
 	idx: int,
-	wrapped_lines: []Wrapped_Text_Line
+	wrapped_lines: Array(Wrapped_Text_Line)
 }
 Layout_Element_Children :: distinct Array(int)
 Layout_Element :: struct {
@@ -392,7 +403,7 @@ State :: struct {
 	generation: u32,
 	measure_text_user_ptr: rawptr,
 	query_scroll_offset_user_ptr: rawptr,
-	arena_internal: mem.Arena,
+	arena_internal: virtual.Arena,
 	arena: runtime.Allocator,
 
 	layout_elements: Array(Layout_Element),
@@ -437,6 +448,7 @@ State :: struct {
 DEFAULT_MAX_ELEMENT_COUNT :: 8192
 DEFAULT_MAX_MEASURE_TEXT_WORD_CACHE_COUNT :: 16384
 MAX_FLOAT : f32 : 999999999999999 // TODO
+EPSILON : f32 : 0.000001
 
 DEFAULT_LAYOUT_CONFIG: Layout_Config = {}
 DEFAULT_TEXT_ELEMENT_CONFIG: Text_Element_Config = {}
@@ -471,16 +483,25 @@ default_ptr :: proc(t: typeid
 	}
 	return nil
 }
-s: State
+s: ^State
 
 // NOTE - PROCEDURES
 
 // TODO arena stuff. I assume I can offload this to virtual.Arena, but eventually will need to do it myself.
 @(private="file")
-array_create :: proc($T: typeid, n: int, allo: runtime.Allocator) -> Array(T)
+array_create :: proc($T: typeid, n: int, allo: runtime.Allocator
+) -> Array(T)
 {
-	items := make([]T, n, allo)
-	return Array(T){items=items, len=0, cap=n}
+	items, err := make([]T, n, allo)
+	if err != nil {
+		s.error_handler.err_proc(Error_Data{
+			type = .ARENA_CAPACITY_EXCEEDED,
+			text = "Claydo attempted to allocate memory in its arena, but ran out of capacity. Try increasing the capacity of the arena passed to initialize()",
+			user_ptr = s.error_handler.user_ptr,
+		})
+		return {}
+	}
+	return Array(T){items=items, len=0, cap=n},
 }
 
 
@@ -546,6 +567,16 @@ array_pop :: #force_inline proc(array: ^Array($T)
 	}
 	array.len -= 1
 	return array.items[array.len]
+}
+
+@(private="file")
+array_swapback :: #force_inline proc(array: ^Array($T), idx: int)
+{
+	if idx >= array.len {
+		return
+	}
+	array.items[idx] = array.items[array.len-1]
+	array.len -= 1
 }
 
 @(private="file")
@@ -1017,15 +1048,15 @@ generate_id_for_anonymous_element :: proc(open_layout_element: ^Layout_Element
 
 @(private="file")
 element_has_config :: proc(layout_element: ^Layout_Element, type: typeid
-) -> bool
+) -> (Element_Config, bool)
 {
-	for config in array_iter(layout_element.element_configs) {
+	for &config in array_iter(layout_element.element_configs) {
 		// TODO this is dumb
 		if type_of(config) == type {
-			return true
+			return config, true
 		}
 	}
-	return false
+	return nil, false
 }
 
 @(private="file")
@@ -1150,7 +1181,7 @@ close_element :: proc()
 	}
 	update_aspect_ratio_box(open_layout_element)
 
-	element_is_floating := element_has_config(open_layout_element, Floating_Element_Config)
+	_, element_is_floating := element_has_config(open_layout_element, ^Floating_Element_Config)
 
 	// Close current element
 	closing_element_idx := array_pop(&s.open_layout_element_stack)
@@ -1415,7 +1446,7 @@ initialize_ephemeral_memory :: proc()
 }
 
 @(private="file")
-initialize_persistent_memory :: proc(s: ^State)
+initialize_persistent_memory :: proc()
 {
 	max_element_count := s.max_element_count
 	max_max_measure_text_cache_word_count := s.max_measure_text_cache_word_count
@@ -1440,50 +1471,824 @@ size_containers_along_axis :: proc(x_axis: bool)
 		root_element := array_get_ptr(&s.layout_elements, root.layout_element_idx)
 		array_push(&bfs_buffer, root.layout_element_idx)
 
-		if element_has_config(root_element, Floating_Element_Config) {
-			floating_element_config := find_element_config_with_type(root_element, Floating_Element_Config).(^Floating_Element_Config)
+		if config, has := element_has_config(root_element, ^Floating_Element_Config); has {
+			floating_element_config := config.(^Floating_Element_Config)
 			parent_item := get_hash_map_item(floating_element_config.parent_id)
 			if parent_item != nil && parent_item != &DEFAULT_LAYOUT_ELEMENT_HASH_MAP_ITEM {
 				parent_layout_element := parent_item.layout_element
-				switch v in root_element.layout_config.sizing.width {
-				case Sizing_Min_Max: {
 
+				#partial switch root_element.layout_config.sizing.width_type {
+				case .GROW: {
+					root_element.dimensions.x = parent_layout_element.dimensions.x
 				}
-				case Percent: {
+				case .PERCENT: {
+					root_element.dimensions.x = parent_layout_element.dimensions.x * f32(root_element.layout_config.sizing.width.(Percent))
+				}
+				}
 
+				#partial switch root_element.layout_config.sizing.height_type {
+				case .GROW: {
+					root_element.dimensions.y = parent_layout_element.dimensions.y
+				}
+				case .PERCENT: {
+					root_element.dimensions.y = parent_layout_element.dimensions.y * f32(root_element.layout_config.sizing.height.(Percent))
 				}
 				}
 			}
-
+		}
+		if root_element.layout_config.sizing.width_type != .PERCENT {
+			root_element.dimensions.x = min(max(root_element.dimensions.x, root_element.layout_config.sizing.width.(Sizing_Min_Max).min), \
+							root_element.layout_config.sizing.width.(Sizing_Min_Max).max)
+		}
+		if root_element.layout_config.sizing.height_type != .PERCENT {
+			root_element.dimensions.y = min(max(root_element.dimensions.y, root_element.layout_config.sizing.height.(Sizing_Min_Max).min), \
+							root_element.layout_config.sizing.height.(Sizing_Min_Max).max)
 		}
 
+		for parent_idx in array_iter(bfs_buffer) {
+			parent := array_get_ptr(&s.layout_elements, parent_idx)
+			grow_container_count := 0
+			parent_size := x_axis ? parent.dimensions.x : parent.dimensions.y
+			parent_padding := x_axis ? parent.layout_config.padding.left + parent.layout_config.padding.right : parent.layout_config.padding.top + parent.layout_config.padding.bottom
+			inner_content_size : f32 = 0
+			total_padding_and_child_gaps := parent_padding
+			sizing_along_axis := (x_axis && parent.layout_config.direction == .LEFT_TO_RIGHT) || (!x_axis && parent.layout_config.direction == .TOP_TO_BOTTOM)
+			resizable_container_buffer.len = 0
+			parent_child_gap := parent.layout_config.child_gap
 
+			for child_element_index, child_offset in array_iter(parent.children_or_text.(Layout_Element_Children)) {
+				child_element := array_get_ptr(&s.layout_elements, child_element_index)
+				child_sizing := x_axis ? child_element.layout_config.sizing.width_type : child_element.layout_config.sizing.height_type
+				child_size := x_axis ? child_element.dimensions.x : child_element.dimensions.y
+				// If the child has children, add it to the buffer to process
+				if _, has := element_has_config(child_element, Text_Element_Config); !has && child_element.children_or_text.(Layout_Element_Children).len > 0 {
+					array_push(&bfs_buffer, child_element_index)
+				}
+
+				text_config, has_text_config := element_has_config(child_element, ^Text_Element_Config)
+				if child_sizing != .PERCENT \
+				&& child_sizing != .FIXED \
+				&& (!has_text_config || text_config.(^Text_Element_Config).wrap_mode == .WRAP_WORDS) {
+					array_push(&resizable_container_buffer, child_element_index)
+				}
+
+				if sizing_along_axis {
+					inner_content_size += child_sizing == .PERCENT ? 0 : child_size
+					if child_sizing == .GROW {
+						grow_container_count += 1
+					}
+					if child_offset > 0 {
+						inner_content_size += parent_child_gap // after 0, offset is the is the gap to the previous child
+						total_padding_and_child_gaps += parent_child_gap
+					}
+				} else {
+					inner_content_size = max(child_size, inner_content_size)
+				}
+			}
+
+			for child_element_index, child_offset in array_iter(parent.children_or_text.(Layout_Element_Children)) {
+				child_element := array_get_ptr(&s.layout_elements, child_element_index)
+				child_sizing := x_axis ? child_element.layout_config.sizing.width_type : child_element.layout_config.sizing.height_type
+				child_size_value := x_axis ? child_element.layout_config.sizing.width : child_element.layout_config.sizing.height
+				child_size := x_axis ? &(child_element.dimensions.x) : &(child_element.dimensions.y)
+				if child_sizing == .PERCENT {
+					child_size^ = (parent_size - total_padding_and_child_gaps) * f32(child_size_value.(Percent))
+					if sizing_along_axis {
+						inner_content_size += child_size^
+					}
+					update_aspect_ratio_box(child_element)
+				}
+			}
+
+			if sizing_along_axis {
+				size_to_distribute := parent_size - parent_padding - inner_content_size
+				if size_to_distribute < 0 {
+					clip_element_config := find_element_config_with_type(parent, Clip_Element_Config).(^Clip_Element_Config)
+					if clip_element_config != nil {
+						if (x_axis && clip_element_config.horizontal) || (!x_axis && clip_element_config.vertical) {
+							continue
+						}
+					}
+					for size_to_distribute < -EPSILON && resizable_container_buffer.len > 0 {
+						largest: f32 = 0
+						second_largest: f32 = 0
+						width_to_add := size_to_distribute
+						for child_idx in array_iter(resizable_container_buffer) {
+							child := array_get_ptr(&s.layout_elements, child_idx)
+							child_size := x_axis ? child.dimensions.x : child.dimensions.y
+							if child_size == largest { // TODO float_equals. Required?
+								continue
+							}
+							if child_size > largest {
+								second_largest = largest
+								largest = child_size
+							}
+							if child_size < largest {
+								second_largest = max(second_largest, child_size)
+								width_to_add = second_largest - largest
+							}
+						}
+
+						width_to_add = max(width_to_add, size_to_distribute / f32(resizable_container_buffer.len))
+
+						for child_idx := 0; child_idx < resizable_container_buffer.len; child_idx += 1 {
+							child := array_get_ptr(&s.layout_elements, array_get(resizable_container_buffer, child_idx))
+							child_size := x_axis ? &child.dimensions.x : &child.dimensions.y
+							min_size := x_axis ? child.min_dimensions.x : child.min_dimensions.y
+							previous_width := child_size^
+							if child_size^ == largest {
+								child_size^ += width_to_add
+								if child_size^ <= min_size {
+									child_size^ = min_size
+									array_swapback(&resizable_container_buffer, child_idx)
+									child_idx -= 1 // TODO sus
+								}
+								size_to_distribute -= (child_size^ - previous_width)
+							}
+						}
+					}
+				}
+			// Sizing off-axxis
+			} else {
+				for child_offset in array_iter(resizable_container_buffer) {
+					child_element := array_get_ptr(&s.layout_elements, child_offset)
+					child_sizing := x_axis ? child_element.layout_config.sizing.width_type : child_element.layout_config.sizing.height_type
+					child_sizing_value := x_axis ? child_element.layout_config.sizing.width : child_element.layout_config.sizing.height
+					child_size := x_axis ? &child_element.dimensions.x : &child_element.dimensions.y
+					max_size := parent_size - parent_padding
+					min_size := x_axis ? child_element.min_dimensions.x : child_element.min_dimensions.y
+					// if laying out children of scroll panel grow containers expand to inner content not outer container
+					if config, has := element_has_config(parent, ^Clip_Element_Config); has {
+						clip_element_config := config.(^Clip_Element_Config)
+						if (x_axis && clip_element_config.horizontal) || (!x_axis && clip_element_config.vertical) {
+							max_size = max(max_size, inner_content_size)
+						}
+					}
+					if child_sizing == .GROW {
+						child_size^ = min(max_size, child_sizing_value.(Sizing_Min_Max).max)
+					}
+					child_size^ = max(min_size, min(child_size^, max_size))
+				}
+			}
+		}
+	}
+}
+
+
+// TODO look into replacing dynamic_string_data with an arena specifically for strings.
+@(private="file")
+int_to_string :: proc(integer: int
+) -> string
+{
+	integer := integer
+	if integer == 0 {
+		return "0"
+	}
+	chars := s.dynamic_string_data.items[s.dynamic_string_data.len:]
+	length := 0
+	sign := integer
+	if integer < 0 {
+		integer = -integer
+	}
+	for integer > 0 {
+		chars[length] = byte(integer % 10) + '0'
+		length += 1
+		integer /= 10
+	}
+	if sign < 0 {
+		chars[length] = '-'
+		length += 1
+	}
+
+	for j := 0; j < length; j += 1 {
+		chars[j], chars[length-j] = chars[length-j], chars[j]
+	}
+	s.dynamic_string_data.len += length
+	return string(chars[:length])
+}
+
+@(private="file")
+push_render_command :: proc(render_command: Render_Command)
+{
+	if s.render_commands.len < s.render_commands.cap - 1 {
+		array_push(&s.render_commands, render_command)
+	} else {
+		if !s.boolean_warnings.max_render_commands_exceeded {
+			s.boolean_warnings.max_render_commands_exceeded = true
+			s.error_handler.err_proc(
+				Error_Data{
+					type = .ELEMENTS_CAPACITY_EXCEEDED,
+					text = "Claydo ran out of capacity while attempting to create render commands. This is usually caused by a large amount of wrapping text elements while close to the max element capacity. Try using set_max_element_count() with a higher value.",
+					user_ptr = s.error_handler.user_ptr,
+				}
+			)
+		}
 	}
 }
 
 @(private="file")
-int_to_string :: proc(integer: int
-) -> string
-{return ""}
-
-@(private="file")
-push_render_command :: proc(render_command: Render_Command)
-{}
-
-@(private="file")
 element_is_offscreen :: proc(bounding_box: ^Bounding_Box
 ) -> bool
-{return true}
+{
+	if s.disable_culling {
+		return false
+	}
+	return (bounding_box.x > s.layout_dimensions.x) || \
+	       (bounding_box.y > s.layout_dimensions.y) || \
+	       (bounding_box.x + bounding_box.width < 0) || \
+	       (bounding_box.y + bounding_box.height < 0)
+}
 
 @(private="file")
-calculate_final_layout :: proc() // 600 line function
-{}
+calculate_final_layout :: proc()
+{
 
+	// calculate sizing along x axis
+	size_containers_along_axis(true)
+
+	// Wrap text
+	// loop through each text element in the layout
+	for &text_element_data in array_iter(s.text_element_data) {
+		// set the wrapped_lines array to the end of the state's wrapped_text_lines array
+		text_element_data.wrapped_lines.items = s.wrapped_text_lines.items[s.wrapped_text_lines.len:]
+		text_element_data.wrapped_lines.cap = s.wrapped_text_lines.cap - s.wrapped_text_lines.len
+		text_element_data.wrapped_lines.len = 0
+		// get the container and measure the text
+		container_element := array_get_ptr(&s.layout_elements, text_element_data.idx)
+		text_config := find_element_config_with_type(container_element, Text_Element_Config).(^Text_Element_Config)
+		measure_text_cache_item := measure_text_cached(&text_element_data.text, text_config)
+		line_width: f32 = 0
+		line_height := text_config.line_height > 0 ? text_config.line_height : text_element_data.preferred_dimensions.y
+		line_length_chars := 0
+		line_start_offset := 0
+		// There are newlines in the item, and it fits inside the container
+		if !measure_text_cache_item.contains_new_lines && text_element_data.preferred_dimensions.x <= container_element.dimensions.x {
+			array_push(&s.wrapped_text_lines, Wrapped_Text_Line{dimensions = container_element.dimensions, text = text_element_data.text})
+			// We increment the lenth here because text_element_data.wrapped_lines is backed by the global store
+			text_element_data.wrapped_lines.len += 1
+			continue
+		}
+		space_width := s.measure_text(" ", text_config^, s.measure_text_user_ptr).x
+		// get the index of the cached measured_word for the first word
+		word_idx := measure_text_cache_item.measured_words_start_idx
+		for word_idx != -1 {
+			// Can't store any more wrapped text
+			if s.wrapped_text_lines.len > s.wrapped_text_lines.cap -1 {
+				break;
+			}
+			measured_word := array_get_ptr(&s.measured_words, word_idx)
+			// if the only word on the line is too large, render it anyway
+			if line_length_chars == 0 && line_width + measured_word.width > container_element.dimensions.x {
+				// TODO These string bounds checkings are super ugly and probably error prone
+				// We push a wrapped line onto the global array, but the backing data is from text_element_data
+				array_push(&s.wrapped_text_lines, Wrapped_Text_Line{dimensions={measured_word.width, line_height}, text = string(text_element_data.text[measured_word.start_offset:measured_word.start_offset+measured_word.length])})
+				// increment wrapped_lines length since it is backed by the global array
+				text_element_data.wrapped_lines.len += 1
+				// Move on to the next word
+				word_idx = measured_word.next
+				line_start_offset = measured_word.start_offset + measured_word.length
+			// measured_word.length == 0 means new line. (or the measured width is too large)
+			} else if measured_word.length == 0 || line_width + measured_word.width > container_element.dimensions.x {
+				// if wrapped text lines list has overflowed, just render out the line
+				final_char_is_space := text_element_data.text[max(line_start_offset + line_length_chars - 1, 0)] == ' '
+				array_push(&s.wrapped_text_lines, Wrapped_Text_Line{dimensions={final_char_is_space ? -space_width : 0, line_height}, text = string(text_element_data.text[line_start_offset:line_start_offset + line_length_chars + (final_char_is_space ? -1 : 0)])})
+				text_element_data.wrapped_lines.len += 1
+				if line_length_chars == 0 || measured_word.length == 0 {
+					word_idx = measured_word.next
+				}
+				// reset for new line
+				line_width = 0
+				line_length_chars = 0
+				line_start_offset = measured_word.start_offset
+			// fits on the line
+			} else {
+				line_width += measured_word.width + text_config.spacing
+				line_length_chars += measured_word.length
+				word_idx = measured_word.next
+			}
+		}
+		// push the remaining characters
+		if line_length_chars > 0 {
+			array_push(&s.wrapped_text_lines, Wrapped_Text_Line{dimensions = {line_width - text_config.spacing, line_height}, text = text_element_data.text[line_start_offset:line_start_offset+line_length_chars]})
+			text_element_data.wrapped_lines.len += 1
+		}
+		container_element.dimensions.y = line_height * f32(text_element_data.wrapped_lines.len)
+	}
+
+	// scale vertical heights according to aspect ratio
+	for aspect_ratio_element_idx in array_iter(s.aspect_ratio_element_idxs) {
+		aspect_element := array_get_ptr(&s.layout_elements, aspect_ratio_element_idx)
+		config := find_element_config_with_type(aspect_element, Aspect_Ratio).(^Aspect_Ratio)
+		aspect_element.dimensions.y = f32(1.0 / config^) * aspect_element.dimensions.x
+		min_max_sizing := &aspect_element.layout_config.sizing.height.(Sizing_Min_Max)
+		min_max_sizing.max = aspect_element.dimensions.y
+	}
+
+	// propagate effect of text wrapping, aspect scalign etc. on height of parents
+	dfs_buffer := s.layout_element_tree_nodes
+	dfs_buffer.len = 0
+	// For each tree root in the layout, add it into a depth first search buffer
+	for root in array_iter(s.layout_element_tree_roots) {
+		s.tree_node_visited.items[dfs_buffer.len] = false
+		array_push(&dfs_buffer, Layout_Element_Tree_Node{layout_element = array_get_ptr(&s.layout_elements, root.layout_element_idx)})
+	}
+	// Keep processing until the buffer is empty
+	for dfs_buffer.len > 0 {
+		// peek
+		current_element_tree_node := array_get_ptr(&dfs_buffer, dfs_buffer.len-1)
+		current_element := current_element_tree_node.layout_element
+		if !s.tree_node_visited.items[dfs_buffer.len-1] {
+			s.tree_node_visited.items[dfs_buffer.len-1] = true
+			// if it's got no children or is just a text container then don't bother inspecting
+			if _, has := element_has_config(current_element, Text_Element_Config); has || current_element.children_or_text.(Layout_Element_Children).len == 0 {
+				dfs_buffer.len -= 1
+				continue
+			}
+			// add the children to the DFS buffer (needs to be pushed in reverse so the that the stack traversal is in correct layout order)
+			for child_idx in array_iter(current_element.children_or_text.(Layout_Element_Children)) {
+				s.tree_node_visited.items[dfs_buffer.len] = false
+				array_push(&dfs_buffer, Layout_Element_Tree_Node{layout_element=array_get_ptr(&s.layout_elements, child_idx)})
+			}
+			continue
+		}
+		dfs_buffer.len -= 1
+		// DFS node has been visited, this is on the way back up to the root
+		layout_config := current_element.layout_config
+		if layout_config.direction == .LEFT_TO_RIGHT {
+			// resize any parent containers that hav grown in height alogn their non layout axis
+			for &child_idx in array_iter(current_element.children_or_text.(Layout_Element_Children)) {
+				child_element := array_get_ptr(&s.layout_elements, child_idx)
+				child_height_with_padding := max(child_element.dimensions.y + layout_config.padding.top + layout_config.padding.bottom, current_element.dimensions.y)
+				current_element.dimensions.y = min(max(child_height_with_padding, layout_config.sizing.height.(Sizing_Min_Max).min), layout_config.sizing.height.(Sizing_Min_Max).max)
+			}
+		} else if layout_config.direction == .TOP_TO_BOTTOM {
+			// resizing along the layout axis
+			content_height := layout_config.padding.top + layout_config.padding.bottom
+			for child_idx in array_iter(current_element.children_or_text.(Layout_Element_Children)) {
+				child_element := array_get_ptr(&s.layout_elements, child_idx)
+				content_height += child_element.dimensions.y
+			}
+			content_height += f32(max(current_element.children_or_text.(Layout_Element_Children).len - 1, 0)) * layout_config.child_gap
+			current_element.dimensions.y = min(max(content_height, layout_config.sizing.height.(Sizing_Min_Max).min), layout_config.sizing.height.(Sizing_Min_Max).max)
+		}
+	}
+	// calculate sizing along y axis
+	size_containers_along_axis(false)
+
+	// scale horizontal widths according to aspect ratio
+	for aspect_idx in array_iter(s.aspect_ratio_element_idxs) {
+		aspect_element := array_get_ptr(&s.layout_elements, aspect_idx)
+		config := find_element_config_with_type(aspect_element, Aspect_Ratio).(^Aspect_Ratio)
+		aspect_element.dimensions.x = f32(config^) * aspect_element.dimensions.y
+	}
+
+	// sort tree roots by z-index
+	// my assumption is this is faster than qsort because the array is usually small? (or it's just easier lmao)
+	sort_max := s.layout_element_tree_roots.len - 1
+	for sort_max > 0 {
+		for i := 0; i < sort_max; i+=1 {
+			current := array_get(s.layout_element_tree_roots, i)
+			next := array_get(s.layout_element_tree_roots, i + 1)
+			if next.z_idx < current.z_idx {
+				array_set(&s.layout_element_tree_roots, i, next)
+				array_set(&s.layout_element_tree_roots, i + 1, current)
+			}
+		}
+		sort_max -= 1
+	}
+
+	// Calculate final positions and generate render commands
+	s.render_commands.len = 0
+	dfs_buffer.len = 0
+	for &root in array_iter(s.layout_element_tree_roots) {
+		dfs_buffer.len = 0
+		root_element := array_get_ptr(&s.layout_elements, root.layout_element_idx)
+		root_position: [2]f32
+		parent_hash_map_item := get_hash_map_item(root.parent_id)
+		if floating_config, has := element_has_config(root_element, Floating_Element_Config); has && parent_hash_map_item != nil {
+			config := floating_config.(^Floating_Element_Config)
+			root_dimensions := root_element.dimensions
+			parent_bounding_box := parent_hash_map_item.bounding_box
+			target_attach_position: [2]f32
+			switch config.attach_points.parent {
+			case .LEFT_TOP, .LEFT_CENTER, .LEFT_BOTTOM: target_attach_position.x = parent_bounding_box.x
+			case .CENTER_TOP, .CENTER_CENTER, .CENTER_BOTTOM: target_attach_position.x = parent_bounding_box.x + (parent_bounding_box.width / 2.0)
+			case .RIGHT_TOP, .RIGHT_CENTER, .RIGHT_BOTTOM: target_attach_position.x = parent_bounding_box.x + parent_bounding_box.width
+			}
+			#partial switch config.attach_points.element {
+			case .CENTER_TOP, .CENTER_CENTER, .CENTER_BOTTOM: target_attach_position.x -= root_dimensions.x / 2.0
+			case .RIGHT_TOP, .RIGHT_CENTER, .RIGHT_BOTTOM: target_attach_position.x -= root_dimensions.x
+			}
+			switch config.attach_points.parent {
+			case .LEFT_TOP, .RIGHT_TOP, .CENTER_TOP: target_attach_position.y = parent_bounding_box.y
+			case .LEFT_CENTER, .CENTER_CENTER, .RIGHT_CENTER: target_attach_position.y = parent_bounding_box.y + parent_bounding_box.y / 2.0
+			case .LEFT_BOTTOM, .CENTER_BOTTOM, .RIGHT_BOTTOM: target_attach_position.y = parent_bounding_box.y + parent_bounding_box.height
+			}
+			#partial switch config.attach_points.element {
+			case .LEFT_CENTER, .CENTER_CENTER, .RIGHT_CENTER: target_attach_position.y -= (root_dimensions.y / 2.0)
+			case .LEFT_BOTTOM, .CENTER_BOTTOM, .RIGHT_BOTTOM: target_attach_position.y -= root_dimensions.y
+			}
+			target_attach_position.x += config.offset.x
+			target_attach_position.y += config.offset.y
+			root_position = target_attach_position
+		}
+		if root.clip_element_id != 0 {
+			clip_hash_map_item := get_hash_map_item(root.clip_element_id)
+			if clip_hash_map_item != nil {
+				if s.external_scroll_handling_enabled {
+					clip_config := find_element_config_with_type(clip_hash_map_item.layout_element, Clip_Element_Config).(^Clip_Element_Config)
+					if clip_config.horizontal {
+						root_position.x += clip_config.child_offset.x
+					}
+					if clip_config.vertical {
+						root_position.y += clip_config.child_offset.y
+					}
+				}
+				array_push(&s.render_commands,
+					Render_Command{
+						bounding_box = clip_hash_map_item.bounding_box,
+						user_ptr = nil,
+						id = hash_number(root_element.id, u32(root_element.children_or_text.(Layout_Element_Children).len) + 10).id,
+						z_idx = root.z_idx,
+						type = .SCISSOR_START,
+					})
+			}
+		}
+		array_push(&dfs_buffer,
+			Layout_Element_Tree_Node{
+				layout_element = root_element,
+				position = root_position,
+				next_child_offset = {root_element.layout_config.padding.left, root_element.layout_config.padding.top}
+			})
+		s.tree_node_visited.items[0] = false
+		for dfs_buffer.len > 0 {
+			current_element_tree_node := array_get_ptr(&dfs_buffer, dfs_buffer.len-1)
+			current_element := current_element_tree_node.layout_element
+			layout_config := current_element.layout_config
+			scroll_offset: [2]f32
+
+			// This will onl be run a single time for each element in downwards DFS order
+			if !s.tree_node_visited.items[dfs_buffer.len-1] {
+				s.tree_node_visited.items[dfs_buffer.len-1] = true
+				current_element_bounding_box := Bounding_Box{current_element_tree_node.position.x, current_element_tree_node.position.y, current_element.dimensions.x, current_element.dimensions.y}
+				if config, has := element_has_config(current_element, Floating_Element_Config); has {
+					floating_element_config := config.(^Floating_Element_Config)
+					expand := floating_element_config.expand
+					current_element_bounding_box.x -= expand.x
+					current_element_bounding_box.width += expand.x * 2.0
+					current_element_bounding_box.y -= expand.y
+					current_element_bounding_box.height += expand.y * 2.0
+				}
+				scroll_container_data: ^Scroll_Container_Data_Internal
+				if config, has := element_has_config(current_element, Clip_Element_Config); has {
+					clip_config := config.(^Clip_Element_Config)
+					for &mapping in array_iter(s.scroll_container_data) {
+						if mapping.layout_element == current_element {
+							scroll_container_data = &mapping
+							mapping.bounding_box = current_element_bounding_box
+							scroll_offset = clip_config.child_offset
+							if s.external_scroll_handling_enabled {
+								scroll_offset = {}
+							}
+							break
+						}
+					}
+				}
+				hash_map_item := get_hash_map_item(current_element.id)
+				if hash_map_item != nil {
+					hash_map_item.bounding_box = current_element_bounding_box
+				}
+
+				sorted_config_indexes: [20]int
+				for i in 0..<current_element.element_configs.len {
+					sorted_config_indexes[i] = i
+				}
+				sort_max = current_element.element_configs.len - 1
+				for sort_max > 0 { // TODO better sort, this is bad
+					for i := 0; i < sort_max; i+=1 {
+						current := sorted_config_indexes[i]
+						next := sorted_config_indexes[i+1]
+						current_type := array_get(current_element.element_configs, current)
+						next_type := array_get(current_element.element_configs, next)
+						if type_of(next_type) == Clip_Element_Config || type_of(current_type) == Border_Element_Config {
+							sorted_config_indexes[i] = next
+							sorted_config_indexes[i + 1] = current
+						}
+					}
+					sort_max -= 1
+				}
+
+				emit_rectangle := false
+				shared_config := find_element_config_with_type(current_element, Shared_Element_Config).(^Shared_Element_Config)
+				if shared_config != nil && shared_config.color.a > 0 {
+					emit_rectangle = true
+				}
+				else if shared_config == nil {
+					shared_config = &DEFAULT_SHARED_ELEMENT_CONFIG
+				}
+				for element_config_idx in sorted_config_indexes[:current_element.element_configs.len] {
+					element_config := array_get_ptr(&current_element.element_configs, element_config_idx)
+					render_command := Render_Command {
+						bounding_box = current_element_bounding_box,
+						user_ptr = shared_config.user_ptr,
+						id = current_element.id,
+					}
+					offscreen := element_is_offscreen(&current_element_bounding_box)
+					should_render := !offscreen
+					#partial switch v in element_config^ {
+					case ^Clip_Element_Config: {
+						render_command.type = .SCISSOR_START
+						render_command.render_data = Clip_Render_Data{
+							horizontal = v.horizontal,
+							vertical = v.vertical,
+						}
+					}
+					case ^Image_Data: {
+						render_command.type = .IMAGE
+						render_command.render_data = Image_Render_Data{
+							color = shared_config.color,
+							corner_radius = shared_config.corner_radius,
+							data = v^,
+						}
+						emit_rectangle = false
+					}
+					case ^Text_Element_Config: {
+						if !should_render {
+							break
+						}
+						should_render = false
+						text_element_config := element_config.(^Text_Element_Config)
+						natural_line_height := current_element.children_or_text.(^Text_Element_Data).preferred_dimensions.y
+						final_line_height := text_element_config.line_height > 0 ? text_element_config.line_height : natural_line_height
+						line_height_offset := final_line_height / natural_line_height / 2.0
+						y_position := line_height_offset
+						for &wrapped_line, line_idx in array_iter(current_element.children_or_text.(^Text_Element_Data).wrapped_lines) {
+							if len(wrapped_line.text) == 0 {
+								y_position += final_line_height
+								continue
+							}
+							offset := current_element_bounding_box.width - wrapped_line.dimensions.x
+							if text_element_config.alignment == .LEFT {
+								offset = 0
+							}
+							if text_element_config.alignment == .CENTER {
+								offset /= 2
+							}
+							push_render_command(Render_Command{
+								bounding_box = {current_element_bounding_box.x + offset, current_element_bounding_box.y + y_position, wrapped_line.dimensions.x, wrapped_line.dimensions.y},
+								render_data = Text_Render_Data{
+									text = current_element.children_or_text.(^Text_Element_Data).text,
+									color = text_element_config.text_color,
+									font_id = text_element_config.font_id,
+									font_size = text_element_config.font_size,
+									spacing = text_element_config.spacing,
+									line_height = text_element_config.line_height
+								},
+								user_ptr = text_element_config.user_ptr,
+								id = hash_number(u32(line_idx), current_element.id).id,
+								z_idx = root.z_idx,
+								type = .TEXT,
+							}
+							)
+							y_position += final_line_height
+							// We have gone past the screen size so break
+							if !s.disable_culling && (current_element_bounding_box.y + y_position > s.layout_dimensions.y) {
+								break
+							}
+						}
+					}
+					case ^Custom_Element_Config: {
+						render_command.type = .CUSTOM
+						render_command.render_data = Custom_Render_Data {
+							color = shared_config.color,
+							corner_radius = shared_config.corner_radius,
+							data = v,
+						}
+						emit_rectangle = false
+					}
+					case: should_render = false
+					}
+
+					if should_render {
+						push_render_command(render_command)
+					}
+				}
+
+				if emit_rectangle {
+					push_render_command(Render_Command{
+						bounding_box = current_element_bounding_box,
+						render_data = Rectangle_Render_Data{
+							color = shared_config.color,
+							corner_radius = shared_config.corner_radius,
+						},
+						user_ptr = shared_config.user_ptr,
+						id = current_element.id,
+						z_idx = root.z_idx,
+						type = .RECTANGLE,
+					})
+				}
+
+				// Setup initial on-axis alignment
+				if _, has := element_has_config(current_element_tree_node.layout_element, Text_Element_Config); !has {
+					content_size := [2]f32{0, 0}
+					if layout_config.direction == .LEFT_TO_RIGHT {
+						for child_idx in array_iter(current_element.children_or_text.(Layout_Element_Children)) {
+							child_element := array_get_ptr(&s.layout_elements, child_idx)
+							content_size.x += child_element.dimensions.x
+							content_size.y = max(content_size.y, child_element.dimensions.y)
+						}
+						content_size.x += f32(max(current_element.children_or_text.(Layout_Element_Children).len - 1, 0)) * layout_config.child_gap
+						extra_space := current_element.dimensions.x - layout_config.padding.left - layout_config.padding.right - content_size.x
+						#partial switch layout_config.child_alignment.x {
+						case .LEFT: extra_space = 0
+						case .CENTER: extra_space /= 2
+						}
+						current_element_tree_node.next_child_offset.x += extra_space
+						extra_space = max(0, extra_space)
+					} else {
+						for child_idx in array_iter(current_element.children_or_text.(Layout_Element_Children)) {
+							child_element := array_get_ptr(&s.layout_elements, child_idx)
+							content_size.x = max(content_size.x, child_element.dimensions.x)
+							content_size.y += child_element.dimensions.y
+						}
+						content_size.y += f32(max(current_element.children_or_text.(Layout_Element_Children).len -1, 0)) * layout_config.child_gap
+						extra_space := current_element.dimensions.y - layout_config.padding.top - layout_config.padding.bottom - content_size.y
+						#partial switch layout_config.child_alignment.y {
+						case .TOP: extra_space = 0
+						case .CENTER: extra_space /=2
+						}
+						extra_space = max(0, extra_space)
+						current_element_tree_node.next_child_offset.y += extra_space
+					}
+					if scroll_container_data != nil {
+						scroll_container_data.content_size = [2]f32{content_size.x + layout_config.padding.left + layout_config.padding.right, content_size.y + layout_config.padding.top + layout_config.padding.bottom}
+					}
+				}
+			} else {
+				// DFS is returning back up
+				close_clip_element := false
+				// close clip element if required
+				clip_config := find_element_config_with_type(current_element, Clip_Element_Config).(^Clip_Element_Config)
+				if clip_config != nil {
+					close_clip_element = true
+					for &mapping in array_iter(s.scroll_container_data) {
+						if mapping.layout_element == current_element {
+							scroll_offset = clip_config.child_offset
+							if s.external_scroll_handling_enabled {
+								scroll_offset = {}
+							}
+							break
+						}
+					}
+				}
+
+				if config, has := element_has_config(current_element, Border_Element_Config); has {
+					current_element_data := get_hash_map_item(current_element.id)
+					current_element_bounding_box := current_element_data.bounding_box
+					// culling - don't bother to generate render commands for recangles entirely outside the screen. This won't stop their children from being rendered if they overflow
+					if !element_is_offscreen(&current_element_bounding_box) {
+						config, has := element_has_config(current_element, Shared_Element_Config)
+						shared_config := has ? config.(^Shared_Element_Config) : &DEFAULT_SHARED_ELEMENT_CONFIG
+						border_config := find_element_config_with_type(current_element, Border_Element_Config).(^Border_Element_Config)
+						push_render_command(Render_Command{
+							bounding_box = current_element_bounding_box,
+							render_data = Border_Render_Data{
+								color = border_config.color,
+								corner_radius = shared_config.corner_radius,
+								width = border_config.width,
+							},
+							user_ptr = shared_config.user_ptr,
+							id = hash_number(current_element.id, u32(current_element.children_or_text.(Layout_Element_Children).len)).id,
+							type = .BORDER,
+						})
+						if border_config.width.between_children > 0 && border_config.color.a > 0 {
+							half_gap := layout_config.child_gap / 2
+							border_offset := [2]f32{layout_config.padding.left - half_gap, layout_config.padding.top - half_gap}
+							if layout_config.direction == .LEFT_TO_RIGHT {
+								for child_idx, idx in array_iter(current_element.children_or_text.(Layout_Element_Children)) {
+									child_element := array_get_ptr(&s.layout_elements, child_idx)
+									if idx > 0 {
+										push_render_command(Render_Command{
+											bounding_box = {current_element_bounding_box.x + border_offset.x + scroll_offset.x, current_element_bounding_box.y + scroll_offset.y, border_config.width.between_children, current_element.dimensions.y},
+											render_data = Rectangle_Render_Data{
+												color = border_config.color
+											},
+											user_ptr = shared_config.user_ptr,
+											id = hash_number(current_element.id, u32(current_element.children_or_text.(Layout_Element_Children).len+1+idx)).id,
+											type = .RECTANGLE,
+										})
+									}
+									border_offset.x += child_element.dimensions.x + layout_config.child_gap
+								}
+							} else {
+								for child_idx, idx in array_iter(current_element.children_or_text.(Layout_Element_Children)) {
+									child_element := array_get_ptr(&s.layout_elements, child_idx)
+									if idx > 0 {
+										push_render_command(Render_Command{
+											bounding_box = {current_element_bounding_box.x + scroll_offset.x, current_element_bounding_box.y + border_offset.y + scroll_offset.y, current_element.dimensions.x, border_config.width.between_children},
+											render_data = Rectangle_Render_Data{
+												color = border_config.color,
+											},
+											user_ptr = shared_config.user_ptr,
+											id = hash_number(current_element.id, u32(current_element.children_or_text.(Layout_Element_Children).len + 1 + idx)).id,
+											type = .RECTANGLE
+										})
+									}
+									border_offset.y += child_element.dimensions.y + layout_config.child_gap
+								}
+							}
+						}
+					}
+				}
+				if close_clip_element {
+					push_render_command(Render_Command{
+						id = hash_number(current_element.id, u32(root_element.children_or_text.(Layout_Element_Children).len + 11)).id,
+						type = .SCISSOR_END
+					})
+				}
+				dfs_buffer.len -= 1
+				continue
+			}
+			// Add children to the DFS buffer
+			if _, has := element_has_config(current_element, Text_Element_Config); !has {
+				dfs_buffer.len += current_element.children_or_text.(Layout_Element_Children).len
+				for child_idx, idx in array_iter(current_element.children_or_text.(Layout_Element_Children)) {
+					child_element := array_get_ptr(&s.layout_elements, child_idx)
+					if layout_config.direction == .LEFT_TO_RIGHT {
+						current_element_tree_node.next_child_offset.y = current_element.layout_config.padding.top
+						white_space_around_child := current_element.dimensions.y - layout_config.padding.top + layout_config.padding.bottom - child_element.dimensions.y
+						#partial switch layout_config.child_alignment.y {
+						case .CENTER: current_element_tree_node.next_child_offset.y += white_space_around_child / 2.0
+						case .BOTTOM: current_element_tree_node.next_child_offset.y += white_space_around_child
+						}
+
+					} else {
+						current_element_tree_node.next_child_offset.x = current_element.layout_config.padding.left
+						white_space_around_child := current_element.dimensions.x - layout_config.padding.left + layout_config.padding.right - child_element.dimensions.x
+						#partial switch layout_config.child_alignment.x {
+						case .CENTER: current_element_tree_node.next_child_offset.x += white_space_around_child / 2.0
+						case .RIGHT: current_element_tree_node.next_child_offset.x += white_space_around_child
+						}
+					}
+					child_position := [2]f32 {
+						current_element_tree_node.position.x + current_element_tree_node.next_child_offset.x + scroll_offset.x,
+						current_element_tree_node.position.y + current_element_tree_node.next_child_offset.y + scroll_offset.y,
+					}
+
+					// DFS buffer elements need to be added in reverse because stack traversal happens backwards
+					new_node_idx := dfs_buffer.len - 1 - idx
+					dfs_buffer.items[new_node_idx] = Layout_Element_Tree_Node{
+						layout_element = child_element,
+						position = {child_position.x, child_position.y},
+						next_child_offset = {child_element.layout_config.padding.left, child_element.layout_config.padding.top},
+					}
+					s.tree_node_visited.items[new_node_idx] = false
+
+					// update parent offsets
+					if layout_config.direction == .LEFT_TO_RIGHT {
+						current_element_tree_node.next_child_offset.x += child_element.dimensions.x + layout_config.child_gap
+					} else {
+						current_element_tree_node.next_child_offset.y += child_element.dimensions.y + layout_config.child_gap
+					}
+				}
+			}
+		}
+		if root.clip_element_id != 0 {
+			push_render_command(Render_Command{
+				id = hash_number(root_element.id, u32(root_element.children_or_text.(Layout_Element_Children).len + 11)).id,
+				type = .SCISSOR_END
+			})
+		}
+	}
+}
+
+@(private="file")
+get_cursor_over_ids :: proc() -> Array(Element_ID)
+{
+	return s.cursor_over_ids
+}
+
+DEBUG_VIEW_WIDTH : f32 : 400
+DEBUG_VIEW_HIGHLIGHT_COLOR : Color : {168, 66, 28, 100}
+DEBUG_VIEW_COLOR_1 : Color : {58, 56, 52, 255}
+DEBUG_VIEW_COLOR_2 : Color : {62, 60, 58, 255}
+DEBUG_VIEW_COLOR_3 : Color : {141, 133, 135, 255}
+DEBUG_VIEW_COLOR_4 : Color : {238, 226, 231, 255}
+DEBUG_VIEW_COLOR_SELECTED_ROW : Color : {102, 80, 78, 255}
+DEBUG_VIEW_ROW_HEIGHT : f32 : 30
+DEBUG_VIEW_OUTER_PADDING : f32 : 10
+DEBUG_VIEW_INDENT_WIDTH : f32 : 16
+DEBUG_VIEW_TEXT_NAME_CONFIG : Text_Element_Config : {text_color = {238, 226, 231, 255}, font_size = 16, wrap_mode = .WRAP_NONE}
+DEBUG_VIEW_SCROLL_VIEW_ITEM_LAYOUT_CONFIG : Layout_Config : {}
+
+// TODO populate debug view stuff
+
+// NOTE DEBUG
 @(private="file")
 debug_get_element_config_type_label :: proc(type: Debug_Element_Config_Type_Label_Config
 ) -> Debug_Element_Config_Type_Label_Config
 {
-	return Debug_Element_Config_Type_Label_Config{}
+	return {}
 }
 
 @(private="file")
@@ -1514,106 +2319,474 @@ handle_debug_view_close_button_interaction :: proc(element_id: Element_ID, curso
 {}
 
 @(private="file")
-DEBUG_VIEW_WIDTH : f32 : 400
-@(private="file")
-DEBUG_VIEW_HIGHLIGHT_COLOR : Color : {168, 66, 28, 100}
-@(private="file")
 render_debug_view :: proc()
 {}
 
-@(private="file")
-Warning_Array_Allocate_Arena :: proc(cap: int, arena: virtual.Arena
-) -> Array(Warning)
-{
-	return Array(Warning){}
-}
-
-@(private="file")
-Array_Allocate_Arena :: proc(cap: int, item_size: u32, arena: virtual.Arena
-) -> rawptr
-{
-	return nil
-}
-
 // NOTE - PUBLIC API
 
-min_memory_size :: proc() -> u32
-{}
+min_memory_size :: proc() -> uint
+{
+	return s.arena_internal.total_reserved
+}
 
-create_arena_with_capacity_and_memory :: proc(cap: u32, memory: rawptr)
-{}
+create_arena_with_capacity_and_memory :: proc(cap: uint, memory: rawptr) -> virtual.Arena
+{
+	arena: virtual.Arena
+	err := virtual.arena_init_static(&arena, reserved = cap)
+	if err != nil {
+		if s.error_handler.err_proc != nil {
+			s.error_handler.err_proc(Error_Data{
+				type = .ARENA_CAPACITY_EXCEEDED,
+				text = "Claydo attempted to allocate memory in its arena, but ran out of capacity. Try increasing the capacity of the arena passed to initialize()",
+				user_ptr = s.error_handler.user_ptr,
+			})
+		}
+		return {}
+	}
+	return arena
+}
 
 set_measure_text_procedure :: proc(procedure: proc(string, Text_Element_Config, rawptr) -> [2]f32, user_ptr: rawptr)
-{}
+{
+	s.measure_text = procedure
+	s.measure_text_user_ptr = user_ptr
+}
 
 set_query_scroll_offset_procedure :: proc(procedure: proc(element_id: u32, user_ptr: rawptr) -> [2]f32, user_ptr: rawptr)
-{}
+{
+	s.query_scroll_offset = procedure
+	s.query_scroll_offset_user_ptr = user_ptr
+}
 
 set_layout_dimensions :: proc(dimensions: [2]f32)
+{
+	s.layout_dimensions = dimensions
+}
+
+set_cursor_state :: proc(position: [2]f32, is_cursor_down: bool)
+{
+	if s.boolean_warnings.max_elements_exceeded {
+		return
+	}
+	s.cursor_info.position = position
+	s.cursor_over_ids.len = 0
+	dfs_buffer := s.layout_element_children_buffer
+	for root in array_iter(s.layout_element_tree_roots) {
+		dfs_buffer.len = 0
+		array_push(&dfs_buffer, root.layout_element_idx)
+		s.tree_node_visited.items[0] = false
+		found := false
+		for dfs_buffer.len > 0 {
+			if s.tree_node_visited.items[dfs_buffer.len-1] {
+				dfs_buffer.len -= 1
+				continue
+			}
+			s.tree_node_visited.items[dfs_buffer.len-1] = true
+			current_element := array_get_ptr(&s.layout_elements, array_get(dfs_buffer, dfs_buffer.len-1))
+			map_item := get_hash_map_item(current_element.id)
+			clip_element_id := array_get(s.layout_element_clip_element_ids, intrinsics.ptr_sub(current_element, &s.layout_elements.items[0]))
+			clip_item := get_hash_map_item(u32(clip_element_id))
+			if map_item != nil {
+				element_box := map_item.bounding_box
+				element_box.x -= root.cursor_offset.x
+				element_box.y -= root.cursor_offset.y
+				if point_is_inside_rect(position, element_box) && (clip_element_id == 0 ||point_is_inside_rect(position, clip_item.bounding_box)) || s.external_scroll_handling_enabled {
+					if map_item.on_hover_function != nil {
+						map_item.on_hover_function(map_item.element_id, s.cursor_info, map_item.hover_function_user_ptr)
+					}
+					array_push(&s.cursor_over_ids, map_item.element_id)
+					found = true
+				}
+				if _, has := element_has_config(current_element, Text_Element_Config); has {
+					dfs_buffer.len -= 1
+					continue
+				}
+				#reverse for child in array_iter(current_element.children_or_text.(Layout_Element_Children)) {
+					array_push(&dfs_buffer, child)
+					s.tree_node_visited.items[dfs_buffer.len - 1] = false // TODO needs to be range checked
+				}
+			} else {
+				dfs_buffer.len -= 1
+			}
+		}
+		root_element := array_get_ptr(&s.layout_elements, root.layout_element_idx)
+		if config, has := element_has_config(root_element, Floating_Element_Config); \
+		found && has && config.(^Floating_Element_Config).cursor_capture_mode == .CAPTURE {
+			break
+		}
+	}
+
+	if is_cursor_down {
+		if s.cursor_info.state == .PRESSED_THIS_FRAME {
+			s.cursor_info.state = .PRESSED
+		} else if s.cursor_info.state != .PRESSED {
+			s.cursor_info.state = .PRESSED_THIS_FRAME
+		}
+	} else {
+		if s.cursor_info.state == .RELEASED_THIS_FRAME {
+			s.cursor_info.state = .RELEASED
+		} else if s.cursor_info.state != .RELEASED {
+			s.cursor_info.state = .RELEASED_THIS_FRAME
+		}
+	}
+}
+
+default_error_handler_proc :: proc(data: Error_Data)
 {}
 
-set_cursor_state :: proc(position: [2]f32, is_pointer_down: bool)
-{}
-
-initialize :: proc(arena: virtual.Arena, layout_dimensions: [2]f32, error_handler: Error_Handler)
-{}
+initialize :: proc(arena: virtual.Arena, layout_dimensions: [2]f32, error_handler: Error_Handler
+) -> ^State
+{
+	state := State{
+		max_element_count = s != nil ? s.max_element_count : DEFAULT_MAX_ELEMENT_COUNT,
+		max_measure_text_cache_word_count = s != nil ? s.max_measure_text_cache_word_count : DEFAULT_MAX_MEASURE_TEXT_WORD_CACHE_COUNT,
+		error_handler = error_handler.err_proc != nil ? error_handler : Error_Handler{default_error_handler_proc, nil},
+		layout_dimensions = layout_dimensions,
+		arena_internal = arena,
+	}
+	// TODO what happens when we don't free the data
+	s^ = state
+	initialize_persistent_memory()
+	// TODO why are we initializing ephemeral memory before starting the layout? Isn't that a leak?
+	initialize_ephemeral_memory()
+	for i in 0..<s.layout_elements_hash_map.cap {
+		s.layout_elements_hash_map.items[i] = -1
+	}
+	for i in 0..<s.measure_text_hash_map.cap {
+		s.measure_text_hash_map.items[i] = 0
+	}
+	s.measure_text_hash_map_internal.len = 1 // reserve 0 to mean "no next element"
+	s.layout_dimensions = layout_dimensions
+	return s
+}
 
 get_scroll_offset :: proc() -> [2]f32
-{}
+{
+	if s.boolean_warnings.max_elements_exceeded {
+		return {}
+	}
+	open_layout_element := get_open_layout_element()
+	if open_layout_element.id == 0 {
+		generate_id_for_anonymous_element(open_layout_element)
+	}
+	for &mapping in array_iter(s.scroll_container_data) {
+		if mapping.layout_element == open_layout_element {
+			return mapping.scroll_position
+		}
+	}
+	return {}
+}
 
 update_scroll_containers :: proc(enable_drag_scrolling: bool, scroll_delta: [2]f32, delta_time: f32)
-{}
+{
+	is_cursor_active := enable_drag_scrolling && (s.cursor_info.state == .PRESSED_THIS_FRAME || s.cursor_info.state == .PRESSED)
+	highest_priority_element_idx := -1
+	highest_priority_scroll_data: ^Scroll_Container_Data_Internal
+	for &scroll_data, idx in array_iter(s.scroll_container_data) {
+		if !scroll_data.open_this_frame {
+			array_swapback(&s.scroll_container_data, idx)
+			continue
+		}
+		scroll_data.open_this_frame = false
+		hash_map_item := get_hash_map_item(scroll_data.element_id)
+		// element isn't rendered this frame but scroll offset has been retained
+		if hash_map_item == nil {
+			array_swapback(&s.scroll_container_data, idx)
+			continue
+		}
+
+		// touch / click is released
+		if !is_cursor_active && scroll_data.cursor_scroll_active {
+			x_diff := scroll_data.scroll_position.x - scroll_data.scroll_origin.x
+			if x_diff < -10 || x_diff > 10 {
+				scroll_data.scroll_momentum.x = (scroll_data.scroll_position.x - scroll_data.scroll_origin.x) / (scroll_data.momentum_time * 25)
+			}
+			y_diff := scroll_data.scroll_position.y - scroll_data.scroll_origin.y
+			if y_diff < -10 || y_diff > 10 {
+				scroll_data.scroll_momentum.y = (scroll_data.scroll_position.y - scroll_data.scroll_origin.y) / (scroll_data.momentum_time * 25)
+			}
+			scroll_data.cursor_scroll_active = false
+			scroll_data.cursor_origin = {0,0}
+			scroll_data.scroll_origin = {0,0}
+			scroll_data.momentum_time = 0
+		}
+
+		scroll_occurred := scroll_delta.x != 0 || scroll_delta.y != 0
+
+		scroll_data.scroll_position.x += scroll_data.scroll_momentum.x
+		scroll_data.scroll_momentum.x *= 0.95
+		if (scroll_data.scroll_momentum.x > -0.1 && scroll_data.scroll_momentum.x < 0.1) || scroll_occurred {
+			scroll_data.scroll_momentum.x = 0
+		}
+		scroll_data.scroll_position.x = min(max(scroll_data.scroll_position.x, -max(scroll_data.content_size.x - scroll_data.layout_element.dimensions.x, 0)), 0)
+
+		scroll_data.scroll_position.y += scroll_data.scroll_momentum.y
+		scroll_data.scroll_momentum.y *= 0.95
+		if (scroll_data.scroll_momentum.y > -0.1 && scroll_data.scroll_momentum.y < 0.1) || scroll_occurred {
+			scroll_data.scroll_momentum.y = 0
+		}
+		scroll_data.scroll_position.y = min(max(scroll_data.scroll_position.y, -max(scroll_data.content_size.y - scroll_data.layout_element.dimensions.y, 0)), 0)
+
+		for j in 0..<s.scroll_container_data.len {
+			if scroll_data.layout_element.id == array_get(s.cursor_over_ids, j).id {
+				highest_priority_element_idx = j
+				highest_priority_scroll_data = &scroll_data
+			}
+		}
+	}
+
+	if highest_priority_element_idx > -1 && highest_priority_scroll_data != nil {
+		scroll_element := highest_priority_scroll_data.layout_element
+		clip_config := find_element_config_with_type(scroll_element, Clip_Element_Config).(^Clip_Element_Config)
+		can_scroll_vertically := clip_config.vertical && highest_priority_scroll_data.content_size.y > scroll_element.dimensions.y
+		can_scroll_horizontally := clip_config.horizontal && highest_priority_scroll_data.content_size.x > scroll_element.dimensions.x
+		// handle wheel scroll
+		if can_scroll_vertically {
+			highest_priority_scroll_data.scroll_position.y = highest_priority_scroll_data.scroll_position.y + scroll_delta.y * 10
+		}
+		if can_scroll_horizontally {
+			highest_priority_scroll_data.scroll_position.x = highest_priority_scroll_data.scroll_position.x + scroll_delta.x * 10
+		}
+		// handle click / touch scroll
+		if is_cursor_active {
+			highest_priority_scroll_data.scroll_momentum = {}
+			if !highest_priority_scroll_data.cursor_scroll_active {
+				highest_priority_scroll_data.cursor_origin = s.cursor_info.position
+				highest_priority_scroll_data.scroll_origin = highest_priority_scroll_data.scroll_position
+				highest_priority_scroll_data.cursor_scroll_active = true
+			} else {
+				scroll_delta_x: f32 = 0
+				scroll_delta_y: f32 = 0
+				if can_scroll_horizontally {
+					old_x_scroll_position := highest_priority_scroll_data.scroll_position.x
+					highest_priority_scroll_data.scroll_position.x = highest_priority_scroll_data.scroll_origin.x + s.cursor_info.position.x - highest_priority_scroll_data.cursor_origin.x
+					highest_priority_scroll_data.scroll_position.x = max(min(highest_priority_scroll_data.scroll_position.x, 0), -highest_priority_scroll_data.content_size.x + highest_priority_scroll_data.bounding_box.x)
+					scroll_delta_x = highest_priority_scroll_data.scroll_position.x - old_x_scroll_position
+				}
+				if can_scroll_vertically {
+					old_y_scroll_position := highest_priority_scroll_data.scroll_position.y
+					highest_priority_scroll_data.scroll_position.y = highest_priority_scroll_data.scroll_origin.y + s.cursor_info.position.y - highest_priority_scroll_data.cursor_origin.y
+					highest_priority_scroll_data.scroll_position.y = max(min(highest_priority_scroll_data.scroll_position.y, 0), -highest_priority_scroll_data.content_size.y + highest_priority_scroll_data.bounding_box.y)
+					scroll_delta_y = highest_priority_scroll_data.scroll_position.x - old_y_scroll_position
+				}
+				if scroll_delta_x > -0.1 && scroll_delta_x < 0.1 && scroll_delta_y > -0.1 && scroll_delta_y < 0.1 && highest_priority_scroll_data.momentum_time > 0.15 {
+					highest_priority_scroll_data.momentum_time = 0
+					highest_priority_scroll_data.cursor_origin = s.cursor_info.position
+					highest_priority_scroll_data.scroll_origin = highest_priority_scroll_data.scroll_position
+				} else {
+					highest_priority_scroll_data.momentum_time += delta_time
+				}
+			}
+		}
+		// clamp any changes to scroll position to the maximum size of the contents
+		if can_scroll_vertically {
+			highest_priority_scroll_data.scroll_position.y = max(min(highest_priority_scroll_data.scroll_position.y, 0), -highest_priority_scroll_data.content_size.y + scroll_element.dimensions.y)
+		}
+		if can_scroll_horizontally {
+			highest_priority_scroll_data.scroll_position.x = max(min(highest_priority_scroll_data.scroll_position.x, 0), -highest_priority_scroll_data.content_size.x + scroll_element.dimensions.x)
+		}
+	}
+}
 
 begin_layout :: proc()
-{}
+{
+	initialize_ephemeral_memory()
+	s.generation += 1
+	s.dynamic_element_idx = 0
+	root_dimensions: [2]f32 = {s.layout_dimensions.x, s.layout_dimensions.y}
+	if s.debug_mode_enabled {
+		root_dimensions.x -= DEBUG_VIEW_WIDTH
+	}
+	s.boolean_warnings = {}
+	open_element_with_id(Element_ID{string_id = "claydo_root_container"})
+	configure_open_element_ptr(&Element_Declaration{
+		layout = {sizing = {width = Sizing_Min_Max{root_dimensions.x, root_dimensions.x}, height = Sizing_Min_Max{root_dimensions.y, root_dimensions.y}, width_type = .FIXED, height_type = .FIXED}}
+	})
+	array_push(&s.open_layout_element_stack, 0)
+	array_push(&s.layout_element_tree_roots, Layout_Element_Tree_Root{layout_element_idx = 0})
+}
 
-end_layout :: proc()
-{}
+end_layout :: proc() -> []Render_Command
+{
+	close_element() // close the root element
+	element_exceeded_before_debug_view := s.boolean_warnings.max_elements_exceeded
+	if s.debug_mode_enabled && !element_exceeded_before_debug_view {
+		s.warnings_enabled = false
+		// TODO render_debug_view()
+		s.warnings_enabled = true
+	}
+	if s.boolean_warnings.max_elements_exceeded {
+		message: string
+		if !element_exceeded_before_debug_view {
+			message = "Claydo Error: Layout elements exceeded max_element_count after adding the debug-view to the layout."
+		} else {
+			message = "Claydo Error: Layout elements exceeded max_element_count"
+		}
+		push_render_command(Render_Command{
+			// HACK what is this -59*4 thing???
+			bounding_box = {s.layout_dimensions.x / 2.0 - 59*4, s.layout_dimensions.y / 2.0, 0, 0},
+			render_data = Text_Render_Data{ text = message, color = {255, 0, 0, 255}, font_size = 16},
+			type = .TEXT
+		})
+	}
+	if s.open_layout_element_stack.len > 1 {
+		s.error_handler.err_proc(Error_Data{
+			type = .UNBALANCED_OPEN_CLOSE,
+			text = "There were still open layout elements when end_layout was called. This results from an unequal number of calls to open_element and close_element.",
+			user_ptr = s.error_handler.user_ptr
+		})
+	}
+	calculate_final_layout()
+	return s.render_commands.items[:s.render_commands.len]
+}
 
 get_element_id :: proc(id_string: string) -> Element_ID
-{return {}}
+{
+	return hash_string(id_string, 0)
+}
 
 get_element_id_with_idx :: proc(id_string: string, idx: u32) -> Element_ID
-{return {}}
+{
+	return hash_string_with_offset(id_string, idx, 0)
+}
 
 hovered :: proc() -> bool
-{return {}}
+{
+	if s.boolean_warnings.max_elements_exceeded {
+		return false
+	}
+	open_layout_element := get_open_layout_element()
+	if open_layout_element.id == 0 {
+		generate_id_for_anonymous_element(open_layout_element)
+	}
+	for id in array_iter(s.cursor_over_ids) {
+		if open_layout_element.id == id.id {
+			return true
+		}
+	}
+	return false
+}
 
 clicked :: proc() -> bool
-{return {}}
+{
+	return hovered() && s.cursor_info.state == .PRESSED_THIS_FRAME
+}
+
+on_hover :: proc(procedure: proc(Element_ID, Cursor_Data, rawptr), user_ptr: rawptr)
+{
+	if s.boolean_warnings.max_elements_exceeded {
+		return
+	}
+	open_layout_element := get_open_layout_element()
+	if open_layout_element.id == 0 {
+		generate_id_for_anonymous_element(open_layout_element)
+	}
+	hash_map_item := get_hash_map_item(open_layout_element.id)
+	hash_map_item.on_hover_function = procedure
+	hash_map_item.hover_function_user_ptr = user_ptr
+}
 
 cursor_over :: proc(element_id: Element_ID) -> bool
-{return {}}
+{
+	for id in array_iter(s.cursor_over_ids) {
+		if id.id == element_id.id {
+			return true
+		}
+	}
+	return false
+}
 
 get_scroll_container_data :: proc(id: Element_ID) -> Scroll_Container_Data
-{return {}}
+{
+	for &scroll_container_data in array_iter(s.scroll_container_data) {
+		if scroll_container_data.element_id == id.id {
+			clip_element_config := find_element_config_with_type(scroll_container_data.layout_element, Clip_Element_Config).(^Clip_Element_Config)
+			if clip_element_config == nil {
+				return {}
+			}
+			return {
+				scroll_position = &scroll_container_data.scroll_position,
+				dimensions = {scroll_container_data.bounding_box.width, scroll_container_data.bounding_box.height},
+				content_dimensions = scroll_container_data.content_size,
+				config = clip_element_config^,
+				found = true
+			}
+		}
+	}
+	return {}
+}
 
 get_element_data :: proc(id: Element_ID) -> Element_Data
-{return {}}
+{
+	item := get_hash_map_item(id.id)
+	if item == &DEFAULT_LAYOUT_ELEMENT_HASH_MAP_ITEM {
+		return {}
+	}
+	return Element_Data{
+		bounding_box = item.bounding_box,
+		found = true,
+	}
+}
 
 set_debug_mode_enabled :: proc(enabled: bool)
-{}
+{
+	s.debug_mode_enabled = enabled
+}
 
 is_debug_mode_enabled :: proc() -> bool
-{return {}}
+{
+	return s.debug_mode_enabled
+}
 
 set_culling_enabled :: proc(enabled: bool)
-{}
+{
+	s.disable_culling = !enabled
+}
 
 set_external_scroll_handling_enabled :: proc(enabled: bool)
-{}
+{
+	s.external_scroll_handling_enabled = enabled
+}
 
 get_max_element_count :: proc() -> int
-{return {}}
+{
+	return s.max_element_count
+}
 
-set_max_element_count :: proc(max_count: int)
-{}
+set_max_element_count :: proc(max_count: int) -> bool
+{
+	if s != nil {
+		s.max_element_count = max_count
+		return true
+	} else {
+		return false
+	}
+}
 
 get_max_measure_text_cache_word_count :: proc() -> int
-{return {}}
+{
+	return s.max_measure_text_cache_word_count
+}
 
-set_max_measure_text_cache_word_count :: proc(count: int)
-{}
+set_max_measure_text_cache_word_count :: proc(count: int) -> bool
+{
+	if s != nil {
+		s.max_measure_text_cache_word_count = count
+		return true
+	} else {
+		return false
+	}
+}
 
 reset_measure_text_cache :: proc()
-{}
+{
+	s.measure_text_hash_map_internal_free_list.len = 0
+	s.measure_text_hash_map.len = 0
+	s.measured_words.len = 0
+	s.measured_words_free_list.len = 0
+
+	for i in 0..<s.measure_text_hash_map.cap {
+		s.measure_text_hash_map.items[i] = 0
+	}
+	s.measure_text_hash_map_internal.len = 1
+}
