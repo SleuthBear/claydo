@@ -17,7 +17,6 @@ Padding :: struct {
 }
 Sizing :: struct {
 	width, height: Sizing_Axis,
-	width_type, height_type: Sizing_Type,
 }
 Sizing_Type :: enum {
 	FIT,
@@ -25,9 +24,9 @@ Sizing_Type :: enum {
 	PERCENT,
 	FIXED,
 }
-Sizing_Axis :: union {
-	Percent,
-	Sizing_Min_Max,
+Sizing_Axis :: struct {
+	type: Sizing_Type,
+	value: union {Percent, Sizing_Min_Max},
 }
 Percent :: distinct f32
 Sizing_Min_Max :: struct {
@@ -263,18 +262,6 @@ Shared_Element_Config :: struct {
 	color: Color,
 	corner_radius: Corner_Radius,
 	user_ptr: rawptr
-}
-
-Element_Config_Type :: enum {
-	NONE,
-	BORDER,
-	FLOATING,
-	CLIP,
-	ASPECT,
-	IMAGE,
-	TEXT,
-	CUSTOM,
-	SHARED,
 }
 
 Element_Config :: union {
@@ -846,7 +833,6 @@ measure_text_cached :: proc(text: string, config: ^Text_Element_Config
 	id := hash_string_content_with_config(text, config)
 	hash_bucket := id % u32(s.max_measure_text_cache_word_count / 32)
 	element_idx_previous := 0
-	s := s
 	// get an index at random?
 	element_idx := s.measure_text_hash_map.items[hash_bucket]
 	for element_idx != 0 { // if it's a valid element
@@ -1024,7 +1010,6 @@ add_hash_map_item :: proc(element_id: Element_ID, layout_element: ^Layout_Elemen
 	if s.layout_elements_hash_map_internal.len == s.layout_elements_hash_map_internal.cap - 1 {
 		return nil
 	}
-	s := s
 	// new item
 	item := Layout_Element_Hash_Map_Item{element_id = element_id, layout_element = layout_element, next_idx = -1, generation = s.generation+1}
 	hash_bucket := element_id.id % u32(s.layout_elements_hash_map.cap)
@@ -1160,7 +1145,6 @@ update_aspect_ratio_box :: proc(layout_element: ^Layout_Element)
 
 close_element :: proc()
 {
-	s := s
 	if s.boolean_warnings.max_elements_exceeded {
 		return
 	}
@@ -1235,32 +1219,32 @@ close_element :: proc()
 	}
 	s.layout_element_children_buffer.len -= open_layout_element.children.len
 
-	if layout_config.sizing.width_type != .PERCENT {
-		if layout_config.sizing.width == nil {
-			layout_config.sizing.width = Sizing_Min_Max{}
+	if layout_config.sizing.width.type != .PERCENT {
+		if layout_config.sizing.width.value == nil {
+			layout_config.sizing.width.value = Sizing_Min_Max{}
 		}
-		if layout_config.sizing.width.(Sizing_Min_Max).max <= 0 {
-			width := layout_config.sizing.width.(Sizing_Min_Max)
+		if layout_config.sizing.width.value.(Sizing_Min_Max).max <= 0 {
+			width := layout_config.sizing.width.value.(Sizing_Min_Max)
 			width.max = MAX_FLOAT
-			layout_config.sizing.width = width
+			layout_config.sizing.width.value = width
 		}
-		open_layout_element.dimensions.x = min(max(open_layout_element.dimensions.x, layout_config.sizing.width.(Sizing_Min_Max).min), layout_config.sizing.width.(Sizing_Min_Max).max)
-		open_layout_element.min_dimensions.x = min(max(open_layout_element.dimensions.x, layout_config.sizing.width.(Sizing_Min_Max).min), layout_config.sizing.width.(Sizing_Min_Max).max)
+		open_layout_element.dimensions.x = min(max(open_layout_element.dimensions.x, layout_config.sizing.width.value.(Sizing_Min_Max).min), layout_config.sizing.width.value.(Sizing_Min_Max).max)
+		open_layout_element.min_dimensions.x = min(max(open_layout_element.dimensions.x, layout_config.sizing.width.value.(Sizing_Min_Max).min), layout_config.sizing.width.value.(Sizing_Min_Max).max)
 	} else {
 		open_layout_element.dimensions.x = 0
 	}
 
-	if layout_config.sizing.height_type != .PERCENT {
-		if layout_config.sizing.height == nil {
-			layout_config.sizing.height = Sizing_Min_Max{}
+	if layout_config.sizing.height.type != .PERCENT {
+		if layout_config.sizing.height.value == nil {
+			layout_config.sizing.height.value = Sizing_Min_Max{}
 		}
-		if layout_config.sizing.height.(Sizing_Min_Max).max <= 0 {
-			height := layout_config.sizing.height.(Sizing_Min_Max)
+		if layout_config.sizing.height.value.(Sizing_Min_Max).max <= 0 {
+			height := layout_config.sizing.height.value.(Sizing_Min_Max)
 			height.max = MAX_FLOAT
-			layout_config.sizing.width = height
+			layout_config.sizing.height.value = height
 		}
-		open_layout_element.dimensions.y = min(max(open_layout_element.dimensions.y, layout_config.sizing.height.(Sizing_Min_Max).min), layout_config.sizing.height.(Sizing_Min_Max).max)
-		open_layout_element.min_dimensions.y = min(max(open_layout_element.dimensions.y, layout_config.sizing.height.(Sizing_Min_Max).min), layout_config.sizing.height.(Sizing_Min_Max).max)
+		open_layout_element.dimensions.y = min(max(open_layout_element.dimensions.y, layout_config.sizing.height.value.(Sizing_Min_Max).min), layout_config.sizing.height.value.(Sizing_Min_Max).max)
+		open_layout_element.min_dimensions.y = min(max(open_layout_element.dimensions.y, layout_config.sizing.height.value.(Sizing_Min_Max).min), layout_config.sizing.height.value.(Sizing_Min_Max).max)
 	} else {
 		open_layout_element.dimensions.y = 0
 	}
@@ -1372,7 +1356,7 @@ configure_open_element_ptr :: proc(declaration: ^Element_Declaration) -> bool
 {
 	open_layout_element := get_open_layout_element()
 	open_layout_element.layout_config = store_layout_config(declaration.layout)
-	if (declaration.layout.sizing.width_type == .PERCENT && declaration.layout.sizing.width.(Percent) > 1) || (declaration.layout.sizing.height_type == .PERCENT && declaration.layout.sizing.height.(Percent) > 1) {
+	if (declaration.layout.sizing.width.type == .PERCENT && declaration.layout.sizing.width.value.(Percent) > 1) || (declaration.layout.sizing.height.type == .PERCENT && declaration.layout.sizing.height.value.(Percent) > 1) {
 		s.error_handler.err_proc(
 			Error_Data{
 				type = .PERCENTAGE_OVER_1,
@@ -1556,32 +1540,32 @@ size_containers_along_axis :: proc(x_axis: bool)
 			parent_item := get_hash_map_item(floating_element_config.parent_id)
 			if parent_item != nil && parent_item != &DEFAULT_LAYOUT_ELEMENT_HASH_MAP_ITEM {
 				parent_layout_element := parent_item.layout_element
-				#partial switch root_element.layout_config.sizing.width_type {
+				#partial switch root_element.layout_config.sizing.width.type {
 				case .GROW: {
 					root_element.dimensions.x = parent_layout_element.dimensions.x
 				}
 				case .PERCENT: {
-					root_element.dimensions.x = parent_layout_element.dimensions.x * f32(root_element.layout_config.sizing.width.(Percent))
+					root_element.dimensions.x = parent_layout_element.dimensions.x * f32(root_element.layout_config.sizing.width.value.(Percent))
 				}
 				}
 
-				#partial switch root_element.layout_config.sizing.height_type {
+				#partial switch root_element.layout_config.sizing.height.type {
 				case .GROW: {
 					root_element.dimensions.y = parent_layout_element.dimensions.y
 				}
 				case .PERCENT: {
-					root_element.dimensions.y = parent_layout_element.dimensions.y * f32(root_element.layout_config.sizing.height.(Percent))
+					root_element.dimensions.y = parent_layout_element.dimensions.y * f32(root_element.layout_config.sizing.height.value.(Percent))
 				}
 				}
 			}
 		}
-		if root_element.layout_config.sizing.width_type != .PERCENT {
-			root_element.dimensions.x = min(max(root_element.dimensions.x, root_element.layout_config.sizing.width.(Sizing_Min_Max).min), \
-							root_element.layout_config.sizing.width.(Sizing_Min_Max).max)
+		if root_element.layout_config.sizing.width.type != .PERCENT {
+			root_element.dimensions.x = min(max(root_element.dimensions.x, root_element.layout_config.sizing.width.value.(Sizing_Min_Max).min), \
+							root_element.layout_config.sizing.width.value.(Sizing_Min_Max).max)
 		}
-		if root_element.layout_config.sizing.height_type != .PERCENT {
-			root_element.dimensions.y = min(max(root_element.dimensions.y, root_element.layout_config.sizing.height.(Sizing_Min_Max).min), \
-							root_element.layout_config.sizing.height.(Sizing_Min_Max).max)
+		if root_element.layout_config.sizing.height.type != .PERCENT {
+			root_element.dimensions.y = min(max(root_element.dimensions.y, root_element.layout_config.sizing.height.value.(Sizing_Min_Max).min), \
+							root_element.layout_config.sizing.height.value.(Sizing_Min_Max).max)
 		}
 
 		for parent_idx in array_iter(bfs_buffer) {
@@ -1597,7 +1581,7 @@ size_containers_along_axis :: proc(x_axis: bool)
 
 			for child_element_index, child_offset in array_iter(parent.children) {
 				child_element := array_get_ptr(&s.layout_elements, child_element_index)
-				child_sizing := x_axis ? child_element.layout_config.sizing.width_type : child_element.layout_config.sizing.height_type
+				child_sizing := x_axis ? child_element.layout_config.sizing.width.type : child_element.layout_config.sizing.height.type
 				child_size := x_axis ? child_element.dimensions.x : child_element.dimensions.y
 				// If the child has children, add it to the buffer to process
 				if _, has := element_has_config(child_element, Text_Element_Config); !has && child_element.children.len > 0 {
@@ -1627,11 +1611,10 @@ size_containers_along_axis :: proc(x_axis: bool)
 
 			for child_element_index, child_offset in array_iter(parent.children) {
 				child_element := array_get_ptr(&s.layout_elements, child_element_index)
-				child_sizing := x_axis ? child_element.layout_config.sizing.width_type : child_element.layout_config.sizing.height_type
-				child_size_value := x_axis ? child_element.layout_config.sizing.width : child_element.layout_config.sizing.height
+				child_sizing := x_axis ? child_element.layout_config.sizing.width : child_element.layout_config.sizing.height
 				child_size := x_axis ? &(child_element.dimensions.x) : &(child_element.dimensions.y)
-				if child_sizing == .PERCENT {
-					child_size^ = (parent_size - total_padding_and_child_gaps) * f32(child_size_value.(Percent))
+				if child_sizing.type == .PERCENT {
+					child_size^ = (parent_size - total_padding_and_child_gaps) * f32(child_sizing.value.(Percent))
 					if sizing_along_axis {
 						inner_content_size += child_size^
 					}
@@ -1690,7 +1673,7 @@ size_containers_along_axis :: proc(x_axis: bool)
 				} else if size_to_distribute > 0 && grow_container_count > 0 {
 					for child_idx := 0; child_idx < resizable_container_buffer.len; child_idx += 1 {
 						child := array_get_ptr(&s.layout_elements, array_get(resizable_container_buffer, child_idx))
-						child_sizing := x_axis ? child.layout_config.sizing.width_type : child.layout_config.sizing.height_type
+						child_sizing := x_axis ? child.layout_config.sizing.width.type : child.layout_config.sizing.height.type
 						if child_sizing != .GROW {
 							array_swapback(&resizable_container_buffer, child_idx)
 							child_idx -= 1
@@ -1720,7 +1703,7 @@ size_containers_along_axis :: proc(x_axis: bool)
 						for child_idx := 0; child_idx < resizable_container_buffer.len; child_idx += 1 {
 							child := array_get_ptr(&s.layout_elements, array_get(resizable_container_buffer, child_idx))
 							child_size := x_axis ? &child.dimensions.x : &child.dimensions.y
-							max_size := x_axis ? child.layout_config.sizing.width.(Sizing_Min_Max).max : child.layout_config.sizing.height.(Sizing_Min_Max).max
+							max_size := x_axis ? child.layout_config.sizing.width.value.(Sizing_Min_Max).max : child.layout_config.sizing.height.value.(Sizing_Min_Max).max
 							previous_width := child_size^
 							if child_size^ == smallest {
 								child_size^ += width_to_add
@@ -1738,8 +1721,7 @@ size_containers_along_axis :: proc(x_axis: bool)
 			} else {
 				for child_offset in array_iter(resizable_container_buffer) {
 					child_element := array_get_ptr(&s.layout_elements, child_offset)
-					child_sizing := x_axis ? child_element.layout_config.sizing.width_type : child_element.layout_config.sizing.height_type
-					child_sizing_value := x_axis ? child_element.layout_config.sizing.width : child_element.layout_config.sizing.height
+					child_sizing := x_axis ? child_element.layout_config.sizing.width : child_element.layout_config.sizing.height
 					min_size := x_axis ? child_element.min_dimensions.x : child_element.min_dimensions.y
 					child_size := x_axis ? &child_element.dimensions.x : &child_element.dimensions.y
 					max_size := parent_size - parent_padding
@@ -1750,8 +1732,8 @@ size_containers_along_axis :: proc(x_axis: bool)
 							max_size = max(max_size, inner_content_size)
 						}
 					}
-					if child_sizing == .GROW {
-						child_size^ = min(max_size, child_sizing_value.(Sizing_Min_Max).max)
+					if child_sizing.type == .GROW {
+						child_size^ = min(max_size, child_sizing.value.(Sizing_Min_Max).max)
 					}
 					child_size^ = max(min_size, min(child_size^, max_size))
 				}
@@ -1830,7 +1812,6 @@ calculate_final_layout :: proc()
 {
 
 
-	s := s
 	// calculate sizing along x axis
 	size_containers_along_axis(true)
 
@@ -1908,7 +1889,7 @@ calculate_final_layout :: proc()
 		aspect_element := array_get_ptr(&s.layout_elements, aspect_ratio_element_idx)
 		config := find_element_config_with_type(aspect_element, Aspect_Ratio).(^Aspect_Ratio)
 		aspect_element.dimensions.y = f32(1.0 / config^) * aspect_element.dimensions.x
-		min_max_sizing := &aspect_element.layout_config.sizing.height.(Sizing_Min_Max)
+		min_max_sizing := &aspect_element.layout_config.sizing.height.value.(Sizing_Min_Max)
 		min_max_sizing.max = aspect_element.dimensions.y
 	}
 
@@ -1947,7 +1928,7 @@ calculate_final_layout :: proc()
 			for &child_idx in array_iter(current_element.children) {
 				child_element := array_get_ptr(&s.layout_elements, child_idx)
 				child_height_with_padding := max(child_element.dimensions.y + layout_config.padding.top + layout_config.padding.bottom, current_element.dimensions.y)
-				current_element.dimensions.y = min(max(child_height_with_padding, layout_config.sizing.height.(Sizing_Min_Max).min), layout_config.sizing.height.(Sizing_Min_Max).max)
+				current_element.dimensions.y = min(max(child_height_with_padding, layout_config.sizing.height.value.(Sizing_Min_Max).min), layout_config.sizing.height.value.(Sizing_Min_Max).max)
 			}
 		} else if layout_config.direction == .TOP_TO_BOTTOM {
 			// resizing along the layout axis
@@ -1957,7 +1938,7 @@ calculate_final_layout :: proc()
 				content_height += child_element.dimensions.y
 			}
 			content_height += f32(max(current_element.children.len - 1, 0)) * layout_config.child_gap
-			current_element.dimensions.y = min(max(content_height, layout_config.sizing.height.(Sizing_Min_Max).min), layout_config.sizing.height.(Sizing_Min_Max).max)
+			current_element.dimensions.y = min(max(content_height, layout_config.sizing.height.value.(Sizing_Min_Max).min), layout_config.sizing.height.value.(Sizing_Min_Max).max)
 		}
 	}
 	// calculate sizing along y axis
@@ -2412,25 +2393,181 @@ DEBUG_VIEW_COLOR_SELECTED_ROW : Color : {102, 80, 78, 255}
 DEBUG_VIEW_ROW_HEIGHT : f32 : 30
 DEBUG_VIEW_OUTER_PADDING : f32 : 10
 DEBUG_VIEW_INDENT_WIDTH : f32 : 16
-DEBUG_VIEW_TEXT_NAME_CONFIG : Text_Element_Config : {text_color = {238, 226, 231, 255}, font_size = 16, wrap_mode = .WRAP_NONE}
-DEBUG_VIEW_SCROLL_VIEW_ITEM_LAYOUT_CONFIG : Layout_Config : {}
+DEBUG_VIEW_TEXT_NAME_CONFIG : Text_Element_Config = {text_color = {238, 226, 231, 255}, font_size = 16, wrap_mode = .WRAP_NONE}
+debug_view_scroll_view_item_layout_config : Layout_Config = {}
 
 // TODO populate debug view stuff
 
 // NOTE DEBUG
 @(private="file")
-debug_get_element_config_type_label :: proc(type: Debug_Element_Config_Type_Label_Config
+debug_get_element_config_type_label :: proc(config: Element_Config
 ) -> Debug_Element_Config_Type_Label_Config
 {
-	return {}
+	switch v in config {
+	case ^Shared_Element_Config: return {"Shared", {243,134,48,255} }
+	case ^Text_Element_Config: return {"Text", {105,210,231,255} }
+	case ^Aspect_Ratio: return {"Aspect", {101,149,194,255} }
+	case ^Image_Data: return {"Image", {121,189,154,255} }
+	case ^Floating_Element_Config: return {"Floating", {250,105,0,255} }
+	case ^Clip_Element_Config: return {"Scroll", {242, 196, 90, 255} }
+	case ^Border_Element_Config: return {"Border", {108, 91, 123, 255} }
+	case ^Custom_Element_Config: return {"Custom", {11,72,107,255} }
+	}
+	return {"Error", {0, 0, 0, 255}}
+}
+@(private="file")
+idi :: proc(label: string, offset: u32) -> Element_ID {
+	return hash_string_with_offset(label, offset, 0)
 }
 
 @(private="file")
-render_debug_elements_list :: proc(initial_roots_length: int, highlighted_row_idx: int
+render_debug_layout_elements_list :: proc(initial_roots_length: int, highlighted_row_idx: int
 ) -> Render_Debug_Layout_Data
 {
-	return Render_Debug_Layout_Data{}
+	dfs_buffer := s.reusable_element_idx_buffer
+	debug_view_scroll_view_item_layout_config = {sizing={height=sizing_fixed(DEBUG_VIEW_ROW_HEIGHT)}, child_gap = 6, child_alignment = {y=.CENTER}}
+	layout_data: Render_Debug_Layout_Data
+	highlighted_element_id: u32 = 0
+	for i := 0; i < initial_roots_length; i += 1 {
+		root_idx := u32(i)
+		root := array_get_ptr(&s.layout_element_tree_roots, i)
+		dfs_buffer.len = 0
+		array_push(&dfs_buffer, root.layout_element_idx)
+		s.tree_node_visited.items[0] = false
+		if root_idx > 0 {
+			{ui(idi("debug_view_empty_row_outer", root_idx))({layout = {sizing = {width = sizing_grow(0)}, padding = {DEBUG_VIEW_INDENT_WIDTH/2.0, 0, 0, 0}}})
+				{ui(idi("debug_view_empty_row", root_idx))({layout = {sizing = {width = sizing_grow(0), height = sizing_fixed(DEBUG_VIEW_ROW_HEIGHT)}}, border = {color = DEBUG_VIEW_COLOR_3, width = {top = 1}}})}
+			}
+			layout_data.row_count += 1
+		}
+		for dfs_buffer.len > 0 {
+			current_element_idx := array_peek(dfs_buffer)
+			current_element := array_get_ptr(&s.layout_elements, current_element_idx)
+			if s.tree_node_visited.items[dfs_buffer.len - 1] {
+				if _, has := element_has_config(current_element, Text_Element_Config); !has && current_element.children.len > 0 {
+					close_element()
+					close_element()
+					close_element()
+				}
+				dfs_buffer.len -= 1
+				continue
+			}
+			if highlighted_row_idx == layout_data.row_count {
+				if s.cursor_info.state == .PRESSED_THIS_FRAME {
+					s.debug_selected_element_id = current_element.id
+				}
+				highlighted_element_id = current_element.id
+			}
+			s.tree_node_visited.items[dfs_buffer.len - 1] = true
+			current_element_data := get_hash_map_item(current_element.id)
+			offscreen := element_is_offscreen(&current_element_data.bounding_box)
+			if s.debug_selected_element_id == current_element.id {
+				layout_data.selected_element_row_idx = layout_data.row_count
+			}
+
+			{ui(idi("debug_view_element_outer", current_element.id))({layout = debug_view_scroll_view_item_layout_config})
+				if _, has := element_has_config(current_element, Text_Element_Config); !has || current_element.children.len == 0 {
+					{ui(idi("debug_view_collapse_element", current_element.id))({
+						layout = {sizing = {sizing_fixed(16), sizing_fixed(16)}, child_alignment = {.CENTER, .CENTER}},
+						corner_radius = corner_radius_all(4),
+						border = {color = DEBUG_VIEW_COLOR_3, width={1,1,1,1,0}}
+					})
+						text(current_element_data != nil && current_element_data.debug_data.collapsed ? "+" : "-", text_config({text_color = DEBUG_VIEW_COLOR_4, font_size = 16}))
+					}
+				} else { // square dot for empty containers
+					{ui()({layout = {sizing = {sizing_fixed(16), sizing_fixed(16)}, child_alignment = {.CENTER, .CENTER}}})
+						ui()({layout = {sizing = {sizing_fixed(8), sizing_fixed(8)}}, color = DEBUG_VIEW_COLOR_3, corner_radius = corner_radius_all(2)})
+					}
+				}
+				// collisions and offscreen info
+				if current_element_data != nil {
+					if current_element_data.debug_data.collision {
+						{ui()({layout = {padding={8,8,2,2}}, border = {color = {177, 147, 8, 255}, width = {1, 1, 1, 1, 0}}})
+							text("Duplicate ID", text_config({text_color = DEBUG_VIEW_COLOR_3, font_size = 16}))
+						}
+					}
+					if offscreen {
+						{ui()({layout = {padding={8,8,2,2}}, border = {color = {177, 147, 8, 255}, width = {1, 1, 1, 1, 0}}})
+							text("Offscreen", text_config({text_color = DEBUG_VIEW_COLOR_3, font_size = 16}))
+						}
+					}
+				}
+				id_string := s.layout_element_id_strings.items[current_element_idx]
+				if len(id_string) > 0 {
+					text(id_string, offscreen ? text_config({text_color = DEBUG_VIEW_COLOR_3, font_size = 16}) : &DEBUG_VIEW_TEXT_NAME_CONFIG)
+				}
+				for element_config in array_iter(current_element.element_configs) {
+					if v, has := element_config.(^Shared_Element_Config); has {
+						label_color := Color{243,134,48,90};
+						if v.color.a > 0 {
+							{ui()({layout = {padding={8,8,2,2}}, border = {color = label_color, width = {1, 1, 1, 1, 0}}})
+								text("Color", text_config({text_color = offscreen ? DEBUG_VIEW_COLOR_3 : DEBUG_VIEW_COLOR_4, font_size = 16}))
+							}
+						}
+						if v.corner_radius.bottom_left > 0 {
+							{ui()({layout = {padding={8,8,2,2}}, border = {color = label_color, width = {1, 1, 1, 1, 0}}})
+								text("Radius", text_config({text_color = offscreen ? DEBUG_VIEW_COLOR_3 : DEBUG_VIEW_COLOR_4, font_size = 16}))
+							}
+						}
+						continue
+					}
+					config := debug_get_element_config_type_label(element_config)
+					background_color := config.color
+					background_color.a = 90
+					{ui()({layout = {padding={8,8,2,2}}, color = background_color, border = {color = config.color, width = {1, 1, 1, 1, 0}}})
+						text(config.label, text_config({text_color = offscreen ? DEBUG_VIEW_COLOR_3 : DEBUG_VIEW_COLOR_4, font_size = 16}))
+					}
+				}
+			}
+			// Render the text contents below the element as a non-interactive row
+			if _, has := element_has_config(current_element, Text_Element_Config); has {
+				layout_data.row_count += 1
+				text_element_data := current_element.text
+				raw_text_config := offscreen ? text_config({text_color = DEBUG_VIEW_COLOR_3, font_size = 16}) : &DEBUG_VIEW_TEXT_NAME_CONFIG
+				{ui()({layout = {sizing={height=sizing_fixed(DEBUG_VIEW_ROW_HEIGHT)}, child_alignment = {y=.CENTER}}})
+					ui()({layout = {sizing = {width = sizing_fixed(DEBUG_VIEW_INDENT_WIDTH+16)}}})
+					text("\"", raw_text_config)
+					text(len(text_element_data.text) > 40 ? text_element_data.text[:37] : text_element_data.text, raw_text_config)
+					if len(text_element_data.text) > 40 {
+						text("...", raw_text_config)
+					}
+					text("\"", raw_text_config)
+				}
+			} else if current_element.children.len > 0 {
+				open_element()
+				configure_open_element({layout = {padding = {left = 8}}})
+				open_element()
+				configure_open_element({layout = {padding = {left = DEBUG_VIEW_INDENT_WIDTH}}, border = {color = DEBUG_VIEW_COLOR_3, width = {left = 1}}})
+				open_element()
+				configure_open_element({layout = {direction = .TOP_TO_BOTTOM}})
+			}
+			layout_data.row_count += 1
+			if _, has := element_has_config(current_element, Text_Element_Config); !has || (current_element_data != nil && current_element_data.debug_data.collapsed) {
+				for i := current_element.children.len - 1; i >= 0; i-= 1 {
+					array_push(&dfs_buffer, current_element.children.items[i])
+					s.tree_node_visited.items[dfs_buffer.len - 1] = false
+				}
+			}
+		}
+	}
+	if s.cursor_info.state == .PRESSED_THIS_FRAME {
+		collapse_button_id := hash_string("debug_view_collapse_element", 0)
+		#reverse for element_id in array_iter(s.cursor_over_ids) {
+			if element_id.base_id == collapse_button_id.base_id {
+				highlighted_item := get_hash_map_item(element_id.offset)
+				highlighted_item.debug_data.collapsed = !highlighted_item.debug_data.collapsed
+				break
+			}
+		}
+	}
+	if highlighted_element_id != 0 {
+		{ui(id("debug_view_element_highlight"))({layout = {sizing = {sizing_grow(0), sizing_grow(0)}}, floating = {parent_id = highlighted_element_id, z_idx = 32767, cursor_capture_mode = .PASSTHROUGH, attach_to = .ELEMENT_WITH_ID}})
+			ui(id("debug_view_element_highlight_rectangle"))({layout = {sizing = {sizing_grow(0), sizing_grow(0)}}, color = DEBUG_VIEW_HIGHLIGHT_COLOR})
+		}
+	}
+	return layout_data
 }
+
 
 @(private="file")
 render_debug_layout_sizing :: proc(sizing: Sizing_Axis, info_text_config: ^Text_Element_Config)
@@ -2601,7 +2738,6 @@ initialize :: proc(arena: Arena, layout_dimensions: [2]f32, error_handler: Error
 	initialize_persistent_memory(s)
 	s.arena_reset_point = s.arena_internal.total_used
 	initialize_ephemeral_memory(s)
-	s := s
 	for i in 0..<s.layout_elements_hash_map.cap {
 		s.layout_elements_hash_map.items[i] = -1
 	}
@@ -2751,9 +2887,9 @@ begin_layout :: proc()
 		root_dimensions.x -= DEBUG_VIEW_WIDTH
 	}
 	s.boolean_warnings = {}
-	open_element_with_id(ID("claydo_root_container"))
+	open_element_with_id(id("claydo_root_container"))
 	configure_open_element_ptr(&Element_Declaration{
-		layout = {sizing = {width = Sizing_Min_Max{root_dimensions.x, root_dimensions.x}, height = Sizing_Min_Max{root_dimensions.y, root_dimensions.y}, width_type = .FIXED, height_type = .FIXED}}
+		layout = {sizing = {width = Sizing_Axis{.FIXED, Sizing_Min_Max{root_dimensions.x, root_dimensions.x}}, height = Sizing_Axis{.FIXED, Sizing_Min_Max{root_dimensions.y, root_dimensions.y}}}}
 	})
 	array_push(&s.open_layout_element_stack, 0)
 	array_push(&s.layout_element_tree_roots, Layout_Element_Tree_Root{layout_element_idx = 0})
@@ -2761,7 +2897,6 @@ begin_layout :: proc()
 
 end_layout :: proc() -> []Render_Command
 {
-	s := s
 	close_element() // close the root element
 	element_exceeded_before_debug_view := s.boolean_warnings.max_elements_exceeded
 	if s.debug_mode_enabled && !element_exceeded_before_debug_view {
@@ -2951,11 +3086,13 @@ configure_open_element :: proc(declaration: Element_Declaration) -> bool
 	return configure_open_element_ptr(&declaration)
 }
 
+@(deferred_none = close_element)
 ui_with_id :: proc(id: Element_ID) -> proc (config: Element_Declaration) -> bool {
 	open_element_with_id(id)
 	return configure_open_element
 }
 
+@(deferred_none = close_element)
 ui_auto_id :: proc() -> proc (config: Element_Declaration) -> bool {
 	open_element()
 	return configure_open_element
@@ -2993,12 +3130,32 @@ corner_radius_all :: proc(radius: f32) -> Corner_Radius
 	return {radius, radius, radius, radius}
 }
 
-ID :: proc(label: string, index: u32 = 0) -> Element_ID
+sizing_fit :: proc(min: f32 = 0, max: f32 = 0) -> Sizing_Axis
+{
+	return {.FIT, Sizing_Min_Max{min, max}}
+}
+
+sizing_grow :: proc(min: f32 = 0, max: f32 = 0) -> Sizing_Axis
+{
+	return {.GROW, Sizing_Min_Max{min, max}}
+}
+
+sizing_fixed :: proc(size: f32 = 0) -> Sizing_Axis
+{
+	return {.FIXED, Sizing_Min_Max{size, size}}
+}
+
+sizing_percent :: proc(percent: f32 = 0) -> Sizing_Axis
+{
+	return {.PERCENT, Percent(percent)}
+}
+
+id :: proc(label: string, index: u32 = 0) -> Element_ID
 {
 	return hash_string(label, index)
 }
 
-ID_LOCAL :: proc(label: string, index: u32 = 0) -> Element_ID
+id_local :: proc(label: string, index: u32 = 0) -> Element_ID
 {
 	return hash_string_with_offset(label, index, get_parent_element_id())
 }
