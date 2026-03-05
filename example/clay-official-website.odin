@@ -73,7 +73,7 @@ LandingPageBlob :: proc(index: u32, font_size: f32, font_id: u16, color: claydo.
             aspect_ratio = 1.0,
             image = claydo.Image_Data(image),
         }) {}
-        claydo.text(text, claydo.text_config({font_size = font_size, font_id = font_id, text_color = color}))
+        claydo.text(text, {font_size = font_size, font_id = font_id, text_color = color})
     }
 }
 
@@ -88,12 +88,12 @@ LandingPageDesktop :: proc() {
             if claydo.ui(claydo.id("LeftText"))({ layout = { sizing = { width = claydo.sizing_percent(0.55) }, direction = .TOP_TO_BOTTOM, child_gap = 8 } }) {
                 claydo.text(
                     "Clay is a flex-box style UI auto layout library in C, with declarative syntax and microsecond performance.",
-                    claydo.text_config({font_size = 56, font_id = FONT_ID_TITLE_56, text_color = COLOR_RED}),
+                    {font_size = 56, font_id = FONT_ID_TITLE_56, text_color = COLOR_RED},
                 )
                 if claydo.ui()({ layout = { sizing = { width = claydo.sizing_grow({}), height = claydo.sizing_fixed(32) } } }) {}
                 claydo.text(
                     "Clay is laying out this webpage right now!",
-                    claydo.text_config({font_size = 36, font_id = FONT_ID_TITLE_36, text_color = COLOR_ORANGE}),
+                    {font_size = 36, font_id = FONT_ID_TITLE_36, text_color = COLOR_ORANGE},
                 )
             }
             if claydo.ui(claydo.id("HeroImageOuter"))({
@@ -122,12 +122,12 @@ LandingPageMobile :: proc() {
         if claydo.ui(claydo.id("LeftText"))({ layout = { sizing = { width = claydo.sizing_grow() }, direction = .TOP_TO_BOTTOM, child_gap = 8 } }) {
             claydo.text(
                 "Clay is a flex-box style UI auto layout library in C, with declarative syntax and microsecond performance.",
-                claydo.text_config({font_size = 48, font_id = FONT_ID_TITLE_48, text_color = COLOR_RED}),
+                {font_size = 48, font_id = FONT_ID_TITLE_48, text_color = COLOR_RED},
             )
             if claydo.ui()({ layout = { sizing = { width = claydo.sizing_grow({}), height = claydo.sizing_fixed(32) } } }) {}
             claydo.text(
                 "Clay is laying out this webpage right now!",
-                claydo.text_config({font_size = 32, font_id = FONT_ID_TITLE_32, text_color = COLOR_ORANGE}),
+                {font_size = 32, font_id = FONT_ID_TITLE_32, text_color = COLOR_ORANGE},
             )
         }
         if claydo.ui(claydo.id("HeroImageOuter"))({
@@ -143,12 +143,12 @@ LandingPageMobile :: proc() {
 }
 
 FeatureBlocks :: proc(widthSizing: claydo.Sizing_Axis, outerPadding: f32) {
-    textConfig := claydo.text_config({font_size = 24, font_id = FONT_ID_BODY_24, text_color = COLOR_RED})
+    textConfig := claydo.Text_Element_Config{font_size = 24, font_id = FONT_ID_BODY_24, text_color = COLOR_RED}
     if claydo.ui(claydo.id("HFileBoxOuter"))({
         layout = { direction = .TOP_TO_BOTTOM, sizing = { width = widthSizing }, child_alignment = { y = .CENTER }, padding = { outerPadding, outerPadding, 32, 32 }, child_gap = 8 },
     }) {
         if claydo.ui(claydo.id("HFileIncludeOuter"))({ layout = { padding = { 8, 8, 4, 4 } }, color = COLOR_RED, corner_radius = claydo.corner_radius_all(8) }) {
-            claydo.text("#include claydo.h", claydo.text_config({font_size = 24, font_id = FONT_ID_BODY_24, text_color = COLOR_LIGHT}))
+            claydo.text("#include claydo.h", {font_size = 24, font_id = FONT_ID_BODY_24, text_color = COLOR_LIGHT})
         }
         claydo.text("~2000 lines of C99.", textConfig)
         claydo.text("Zero dependencies, including no C standard library.", textConfig)
@@ -156,7 +156,7 @@ FeatureBlocks :: proc(widthSizing: claydo.Sizing_Axis, outerPadding: f32) {
     if claydo.ui(claydo.id("BringYourOwnRendererOuter"))({
         layout = { direction = .TOP_TO_BOTTOM, sizing = { width = widthSizing }, child_alignment = { y = .CENTER }, padding = { outerPadding, outerPadding, 32, 32 }, child_gap = 8 },
     }) {
-        claydo.text("Renderer agnostic.", claydo.text_config({font_id = FONT_ID_BODY_24, font_size = 24, text_color = COLOR_ORANGE}))
+        claydo.text("Renderer agnostic.", {font_id = FONT_ID_BODY_24, font_size = 24, text_color = COLOR_ORANGE})
         claydo.text("Layout with clay, then render with Raylib, WebGL Canvas or even as HTML.", textConfig)
         claydo.text("Flexible output for easy compositing in your custom engine or environment.", textConfig)
     }
@@ -184,19 +184,19 @@ FeatureBlocksMobile :: proc() {
 
 DeclarativeSyntaxPage :: proc(titleTextConfig: claydo.Text_Element_Config, widthSizing: claydo.Sizing_Axis) {
     if claydo.ui(claydo.id("SyntaxPageLeftText"))({ layout = { sizing = { width = widthSizing }, direction = .TOP_TO_BOTTOM, child_gap = 8 } }) {
-        claydo.text("Declarative Syntax", claydo.text_config(titleTextConfig))
+        claydo.text("Declarative Syntax", titleTextConfig)
         if claydo.ui(claydo.id("SyntaxSpacer"))({ layout = { sizing = { width = claydo.sizing_grow(max = 16) } } }) {}
         claydo.text(
             "Flexible and readable declarative syntax with nested UI element hierarchies.",
-            claydo.text_config({font_size = 28, font_id = FONT_ID_BODY_28, text_color = COLOR_RED}),
+            {font_size = 28, font_id = FONT_ID_BODY_28, text_color = COLOR_RED},
         )
         claydo.text(
             "Mix elements with standard C code like loops, conditionals and functions.",
-            claydo.text_config({font_size = 28, font_id = FONT_ID_BODY_28, text_color = COLOR_RED}),
+            {font_size = 28, font_id = FONT_ID_BODY_28, text_color = COLOR_RED},
         )
         claydo.text(
             "Create your own library of re-usable components from UI primitives like text, images and rectangles.",
-            claydo.text_config({font_size = 28, font_id = FONT_ID_BODY_28, text_color = COLOR_RED}),
+            {font_size = 28, font_id = FONT_ID_BODY_28, text_color = COLOR_RED},
         )
     }
     if claydo.ui(claydo.id("SyntaxPageRightImage"))({ layout = { sizing = { width = widthSizing }, child_alignment = { x = .CENTER } } }) {
@@ -243,19 +243,19 @@ LOREM_IPSUM_TEXT :: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, se
 
 HighPerformancePage :: proc(lerpValue: f32, titleTextConfig: claydo.Text_Element_Config, widthSizing: claydo.Sizing_Axis) {
     if claydo.ui(claydo.id("PerformanceLeftText"))({ layout = { sizing = { width = widthSizing }, direction = .TOP_TO_BOTTOM, child_gap = 8 } }) {
-        claydo.text("High Performance", claydo.text_config(titleTextConfig))
+        claydo.text("High Performance", titleTextConfig)
         if claydo.ui()({ layout = { sizing = { width = claydo.sizing_grow(max = 16) } }}) {}
         claydo.text(
             "Fast enough to recompute your entire UI every frame.",
-            claydo.text_config({font_size = 28, font_id = FONT_ID_BODY_36, text_color = COLOR_LIGHT}),
+            {font_size = 28, font_id = FONT_ID_BODY_36, text_color = COLOR_LIGHT},
         )
         claydo.text(
             "Small memory footprint (3.5mb default) with static allocation & reuse. No malloc / free.",
-            claydo.text_config({font_size = 28, font_id = FONT_ID_BODY_36, text_color = COLOR_LIGHT}),
+            {font_size = 28, font_id = FONT_ID_BODY_36, text_color = COLOR_LIGHT},
         )
         claydo.text(
             "Simplify animations and reactive UI design by avoiding the standard performance hacks.",
-            claydo.text_config({font_size = 28, font_id = FONT_ID_BODY_36, text_color = COLOR_LIGHT}),
+            {font_size = 28, font_id = FONT_ID_BODY_36, text_color = COLOR_LIGHT},
         )
     }
     if claydo.ui(claydo.id("PerformanceRightImageOuter"))({ layout = { sizing = { width = widthSizing }, child_alignment = { x = .CENTER } } }) {
@@ -267,13 +267,13 @@ HighPerformancePage :: proc(lerpValue: f32, titleTextConfig: claydo.Text_Element
                 layout = { sizing = { claydo.sizing_percent(0.35 + 0.3 * lerpValue), claydo.sizing_grow() }, child_alignment = { y = .CENTER }, padding = claydo.padding_all(16) },
                 color = ColorLerp(COLOR_RED, COLOR_ORANGE, lerpValue),
             }) {
-                claydo.text(LOREM_IPSUM_TEXT, claydo.text_config({font_size = 16, font_id = FONT_ID_BODY_16, text_color = COLOR_LIGHT}))
+                claydo.text(LOREM_IPSUM_TEXT, {font_size = 16, font_id = FONT_ID_BODY_16, text_color = COLOR_LIGHT})
             }
             if claydo.ui(claydo.id("AnimationDemoContainerRight"))({
                 layout = { sizing = { claydo.sizing_grow(), claydo.sizing_grow() }, child_alignment = { y = .CENTER }, padding = claydo.padding_all(16) },
                 color = ColorLerp(COLOR_ORANGE, COLOR_RED, lerpValue),
             }) {
-                claydo.text(LOREM_IPSUM_TEXT, claydo.text_config({font_size = 16, font_id = FONT_ID_BODY_16, text_color = COLOR_LIGHT}))
+                claydo.text(LOREM_IPSUM_TEXT, {font_size = 16, font_id = FONT_ID_BODY_16, text_color = COLOR_LIGHT})
             }
         }
     }
@@ -309,7 +309,7 @@ RendererButtonActive :: proc(index: i32, $text: string) {
         color = COLOR_RED,
         corner_radius = claydo.corner_radius_all(10)
     }) {
-        claydo.text(text, claydo.text_config({font_size = 28, font_id = FONT_ID_BODY_28, text_color = COLOR_LIGHT}))
+        claydo.text(text, {font_size = 28, font_id = FONT_ID_BODY_28, text_color = COLOR_LIGHT})
     }
 }
 
@@ -320,32 +320,32 @@ RendererButtonInactive :: proc(index: u32, $text: string) {
             color = COLOR_LIGHT,
             corner_radius = claydo.corner_radius_all(10)
         }) {
-            claydo.text(text, claydo.text_config({font_size = 28, font_id = FONT_ID_BODY_28, text_color = COLOR_RED}))
+            claydo.text(text, {font_size = 28, font_id = FONT_ID_BODY_28, text_color = COLOR_RED})
         }
     }
 }
 
 RendererPage :: proc(titleTextConfig: claydo.Text_Element_Config, widthSizing: claydo.Sizing_Axis) {
     if claydo.ui(claydo.id("RendererLeftText"))({ layout = { sizing = { width = widthSizing }, direction = .TOP_TO_BOTTOM, child_gap = 8 } }) {
-        claydo.text("Renderer & Platform Agnostic", claydo.text_config(titleTextConfig))
+        claydo.text("Renderer & Platform Agnostic", titleTextConfig)
         if claydo.ui()({ layout = { sizing = { width = claydo.sizing_grow(max = 16) } } }) {}
         claydo.text(
             "Clay outputs a sorted array of primitive render commands, such as RECTANGLE, TEXT or IMAGE.",
-            claydo.text_config({font_size = 28, font_id = FONT_ID_BODY_36, text_color = COLOR_RED}),
+            {font_size = 28, font_id = FONT_ID_BODY_36, text_color = COLOR_RED},
         )
         claydo.text(
             "Write your own renderer in a few hundred lines of code, or use the provided examples for Raylib, WebGL canvas and more.",
-            claydo.text_config({font_size = 28, font_id = FONT_ID_BODY_36, text_color = COLOR_RED}),
+            {font_size = 28, font_id = FONT_ID_BODY_36, text_color = COLOR_RED},
         )
         claydo.text(
             "There's even an HTML renderer - you're looking at it right now!",
-            claydo.text_config({font_size = 28, font_id = FONT_ID_BODY_36, text_color = COLOR_RED}),
+            {font_size = 28, font_id = FONT_ID_BODY_36, text_color = COLOR_RED},
         )
     }
     if claydo.ui(claydo.id("RendererRightText"))({
         layout = { sizing = { width = widthSizing }, child_alignment = { x = .CENTER }, direction = .TOP_TO_BOTTOM, child_gap = 16 },
     }) {
-        claydo.text("Try changing renderer!", claydo.text_config({font_size = 36, font_id = FONT_ID_BODY_36, text_color = COLOR_ORANGE}))
+        claydo.text("Try changing renderer!", {font_size = 36, font_id = FONT_ID_BODY_36, text_color = COLOR_ORANGE})
         if claydo.ui()({ layout = { sizing = { width = claydo.sizing_grow(max = 32) } } }) {}
         RendererButtonActive(0, "Raylib Renderer")
     }
@@ -388,7 +388,7 @@ ScrollbarData :: struct {
 scrollbarData := ScrollbarData{}
 animationLerpValue: f32 = -1.0
 
-createLayout :: proc(lerpValue: f32) -> []claydo.Render_Command {
+createLayout :: proc(lerpValue: f32, dt: f32) -> []claydo.Render_Command {
     mobileScreen := windowWidth < 750
     claydo.begin_layout()
     if claydo.ui(claydo.id("OuterContainer"))({
@@ -398,15 +398,15 @@ createLayout :: proc(lerpValue: f32) -> []claydo.Render_Command {
         if claydo.ui(claydo.id("Header"))({
             layout = { direction = .LEFT_TO_RIGHT, sizing = { claydo.sizing_grow(), claydo.sizing_fixed(50) }, child_alignment = { y = .CENTER }, child_gap = 24, padding = { left = 32, right = 32 } },
         }) {
-            claydo.text("Clay", &headerTextConfig)
+            claydo.text("Clay", headerTextConfig)
             if claydo.ui()({ layout = { sizing = { width = claydo.sizing_grow() } } }) {}
 
             if (!mobileScreen) {
                 if claydo.ui(claydo.id("LinkExamplesOuter"))({ color = {0, 0, 0, 0} }) {
-                    claydo.text("Examples", claydo.text_config({font_id = FONT_ID_BODY_24, font_size = 24, text_color = claydo.Color({61, 26, 5, 255} / 255)}))
+                    claydo.text("Examples", {font_id = FONT_ID_BODY_24, font_size = 24, text_color = claydo.Color({61, 26, 5, 255} / 255)})
                 }
                 if claydo.ui(claydo.id("LinkDocsOuter"))({ color = {0, 0, 0, 0} }) {
-                    claydo.text("Docs", claydo.text_config({font_id = FONT_ID_BODY_24, font_size = 24, text_color = claydo.Color({61, 26, 5, 255} / 255)}))
+                    claydo.text("Docs", {font_id = FONT_ID_BODY_24, font_size = 24, text_color = claydo.Color({61, 26, 5, 255} / 255)})
                 }
             }
             if claydo.ui(claydo.id("LinkGithubOuter"))({
@@ -415,7 +415,7 @@ createLayout :: proc(lerpValue: f32) -> []claydo.Render_Command {
                 color = claydo.hovered() ? COLOR_LIGHT_HOVER : COLOR_LIGHT,
                 corner_radius = claydo.corner_radius_all(10)
             }) {
-                claydo.text("Github", claydo.text_config({font_id = FONT_ID_BODY_24, font_size = 24, text_color = claydo.Color({61, 26, 5, 255} / 255)}))
+                claydo.text("Github", {font_id = FONT_ID_BODY_24, font_size = 24, text_color = claydo.Color({61, 26, 5, 255} / 255)})
             }
         }
         if claydo.ui(claydo.id("TopBorder1"))({ layout = { sizing = { claydo.sizing_grow(), claydo.sizing_fixed(4) } }, color = COLOR_TOP_BORDER_5 } ) {}
@@ -444,7 +444,7 @@ createLayout :: proc(lerpValue: f32) -> []claydo.Render_Command {
             }
         }
     }
-    return claydo.end_layout()
+    return claydo.end_layout(dt)
 }
 
 loadFont :: proc(font_id: u16, font_size: u16, path: cstring) {
@@ -491,6 +491,7 @@ main :: proc() {
     debugModeEnabled: bool = false
 
     for !raylib.WindowShouldClose() {
+        dt := raylib.GetFrameTime()
         defer free_all(context.temp_allocator)
 
         animationLerpValue += raylib.GetFrameTime()
@@ -506,7 +507,7 @@ main :: proc() {
         claydo.set_cursor_state(transmute([2]f32)raylib.GetMousePosition(), raylib.IsMouseButtonDown(raylib.MouseButton.LEFT))
         claydo.update_scroll_containers(false, transmute([2]f32)raylib.GetMouseWheelMoveV(), raylib.GetFrameTime())
         claydo.set_layout_dimensions({cast(f32)raylib.GetScreenWidth(), cast(f32)raylib.GetScreenHeight()})
-        renderCommands: []claydo.Render_Command = createLayout(animationLerpValue < 0 ? (animationLerpValue + 1) : (1 - animationLerpValue))
+        renderCommands: []claydo.Render_Command = createLayout(animationLerpValue < 0 ? (animationLerpValue + 1) : (1 - animationLerpValue), dt)
         raylib.BeginDrawing()
         clay_raylib_render(renderCommands)
         raylib.EndDrawing()

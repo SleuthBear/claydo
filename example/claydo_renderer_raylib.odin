@@ -90,7 +90,7 @@ clay_raylib_render :: proc(render_commands: []claydo.Render_Command, allocator :
 	for render_command in render_commands {
         bounds := render_command.bounding_box
 
-        switch render_command.type {
+        #partial switch render_command.type {
         case .NONE: // None
         case .TEXT:
             config := render_command.render_data.(claydo.Text_Render_Data)
