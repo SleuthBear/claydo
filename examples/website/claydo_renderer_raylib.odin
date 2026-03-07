@@ -107,7 +107,7 @@ clay_raylib_render :: proc(render_commands: []claydo.Render_Command, allocator :
             config := render_command.render_data.(claydo.Image_Render_Data)
             tint := config.color
             if tint == 0 {
-                tint = {255, 255, 255, 255}
+                tint = {1, 1, 1, 1}
             }
 
             imageTexture := (^rl.Texture2D)(config.data)

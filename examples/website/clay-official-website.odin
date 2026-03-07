@@ -5,8 +5,8 @@ import "core:c"
 import "core:fmt"
 import "vendor:raylib"
 
-windowWidth: i32 = 1024
-windowHeight: i32 = 768
+windowWidth: i32 = 2048
+windowHeight: i32 = 1400
 
 syntaxImage: raylib.Texture2D = {}
 checkImage1: raylib.Texture2D = {}
@@ -64,7 +64,7 @@ border2pxRed := claydo.Border_Element_Config {
 
 LandingPageBlob :: proc(index: u32, font_size: f32, font_id: u16, color: claydo.Color, $text: string, image: ^raylib.Texture2D) {
     if claydo.ui(claydo.id("HeroBlob", index))({
-        layout = { sizing = { width = claydo.sizing_grow(max = 480) }, padding = claydo.padding_all(16), child_gap = 16, child_alignment = claydo.Child_Alignment{ y = .CENTER } },
+        layout = { sizing = { width = claydo.sizing_grow(max = 480) }, padding = claydo.padding_all(16), child_gap = 16}, //child_alignment = claydo.Child_Alignment{ y = .CENTER } },
         border = border2pxRed,
         corner_radius = claydo.corner_radius_all(10)
     }) {
@@ -78,6 +78,7 @@ LandingPageBlob :: proc(index: u32, font_size: f32, font_id: u16, color: claydo.
 }
 
 LandingPageDesktop :: proc() {
+        fmt.println("Desktop")
     if claydo.ui(claydo.id("LandingPage1Desktop"))({
         layout = { sizing = { width = claydo.sizing_grow(), height = claydo.sizing_fit(min = cast(f32)windowHeight - 70) }, child_alignment = { y = .CENTER }, padding = { left = 50, right = 50 } },
     }) {
@@ -148,7 +149,7 @@ FeatureBlocks :: proc(widthSizing: claydo.Sizing_Axis, outerPadding: f32) {
         layout = { direction = .TOP_TO_BOTTOM, sizing = { width = widthSizing }, child_alignment = { y = .CENTER }, padding = { outerPadding, outerPadding, 32, 32 }, child_gap = 8 },
     }) {
         if claydo.ui(claydo.id("HFileIncludeOuter"))({ layout = { padding = { 8, 8, 4, 4 } }, color = COLOR_RED, corner_radius = claydo.corner_radius_all(8) }) {
-            claydo.text("#include claydo.h", {font_size = 24, font_id = FONT_ID_BODY_24, text_color = COLOR_LIGHT})
+            claydo.text("#include clay.h", {font_size = 24, font_id = FONT_ID_BODY_24, text_color = COLOR_LIGHT})
         }
         claydo.text("~2000 lines of C99.", textConfig)
         claydo.text("Zero dependencies, including no C standard library.", textConfig)
@@ -435,13 +436,15 @@ createLayout :: proc(lerpValue: f32, dt: f32) -> []claydo.Render_Command {
                 DeclarativeSyntaxPageDesktop()
                 HighPerformancePageDesktop(lerpValue)
                 RendererPageDesktop()
-            } else {
-                LandingPageMobile()
-                FeatureBlocksMobile()
-                DeclarativeSyntaxPageMobile()
-                HighPerformancePageMobile(lerpValue)
-                RendererPageMobile()
             }
+            // } else {
+            //         fmt.println("mobile")
+            //     LandingPageMobile()
+            //     FeatureBlocksMobile()
+            //     DeclarativeSyntaxPageMobile()
+            //     HighPerformancePageMobile(lerpValue)
+            //     RendererPageMobile()
+            // }
         }
     }
     return claydo.end_layout(dt)

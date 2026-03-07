@@ -200,9 +200,9 @@ Layout_Alignment_X :: enum {
 	CENTER,
 }
 Layout_Alignment_Y :: enum {
+        CENTER,
 	TOP,
 	BOTTOM,
-	CENTER,
 }
 Child_Alignment :: struct {
 	x: Layout_Alignment_X,
@@ -1252,7 +1252,7 @@ open_text_element :: proc(text: string, config: Text_Element_Config)
 	array_push(&s.layout_element_id_strings, element_id.string_id)
 	text_dimensions := [2]f32{text_measured.unwrapped_dimension.x, config.line_height > 0 ? config.line_height : text_measured.unwrapped_dimension.y}
 	text_element.dimensions = text_dimensions
-	text_element.min_dimensions = text_dimensions
+	text_element.min_dimensions = {text_measured.min_width, text_dimensions.y}
 	config := &text_element.config.(Text_Declaration)
 	config.data = Text_Element_Data{text = text, preferred_dimensions = text_measured.unwrapped_dimension, idx = s.layout_elements.len - 1}
 	element_count := s.max_element_count
@@ -1465,7 +1465,7 @@ size_containers_along_axis :: proc(x_axis: bool, text_elements_out: ^Array(int),
 				child_element := array_get_ptr(&s.layout_elements, child_element_index)
 				child_config, is_layout := child_element.config.(Element_Declaration)
 				child_sizing: Sizing_Type
-				child_sizing = is_layout ? (x_axis ? child_config.layout.sizing.width.type : child_config.layout.sizing.height.type) : .FIT
+				       child_sizing = is_layout ? (x_axis ? child_config.layout.sizing.width.type : child_config.layout.sizing.height.type) : .FIT
 				child_size := x_axis ? child_element.dimensions.x : child_element.dimensions.y
 
 				// If the child has children, add it to the buffer to process
@@ -1516,6 +1516,7 @@ size_containers_along_axis :: proc(x_axis: bool, text_elements_out: ^Array(int),
 				}
 			}
 			if sizing_along_axis {
+
 				size_to_distribute := parent_size - parent_padding - inner_content_size
 				// content is too large, compress children as much as possible
 				if size_to_distribute < 0 {
@@ -1530,6 +1531,8 @@ size_containers_along_axis :: proc(x_axis: bool, text_elements_out: ^Array(int),
 						for child_idx in array_iter(resizable_container_buffer) {
 							child := array_get_ptr(&s.layout_elements, child_idx)
 							child_size := x_axis ? child.dimensions.x : child.dimensions.y
+							if child_size > parent.dimensions.x {
+							}
 							if child_size == largest { // TODO float_equals. Required?
 								continue
 							}
@@ -1544,7 +1547,6 @@ size_containers_along_axis :: proc(x_axis: bool, text_elements_out: ^Array(int),
 						}
 
 						width_to_add = max(width_to_add, size_to_distribute / f32(resizable_container_buffer.len))
-
 						for child_idx := 0; child_idx < resizable_container_buffer.len; child_idx += 1 {
 							child := array_get_ptr(&s.layout_elements, array_get(resizable_container_buffer, child_idx))
 							child_size := x_axis ? &child.dimensions.x : &child.dimensions.y
@@ -1625,7 +1627,7 @@ size_containers_along_axis :: proc(x_axis: bool, text_elements_out: ^Array(int),
 						max_size = max(max_size, inner_content_size)
 					}
 					if child_sizing.type == .GROW {
-						child_size^ = min(max_size, child_sizing.value.(Sizing_Min_Max).max) // NOTE - revert
+						child_size^ = min(max_size, child_sizing.value.(Sizing_Min_Max).max)
 					}
 					child_size^ = max(min_size, min(child_size^, max_size))
 				}
@@ -1792,7 +1794,7 @@ calculate_final_layout :: proc(delta_time: f32)
 		line_length_chars := 0
 		line_start_offset := 0
 
-		// There are newlines in the item, and it fits inside the container
+		// There are no newlines in the item, and it fits inside the container
 		if !measure_text_cache_item.contains_new_lines && text_element_data.preferred_dimensions.x <= container_element.dimensions.x {
 			array_push(&s.wrapped_text_lines, Wrapped_Text_Line{dimensions = container_element.dimensions, text = text_element_data.text})
 			// We increment the lenth here because text_element_data.wrapped_lines is backed by the global store
@@ -1811,9 +1813,8 @@ calculate_final_layout :: proc(delta_time: f32)
 			measured_word := array_get_ptr(&s.measured_words, word_idx)
 			// if the only word on the line is too large, render it anyway
 			if line_length_chars == 0 && line_width + measured_word.width > container_element.dimensions.x {
-				// TODO These string bounds checkings are super ugly and probably error prone
 				// We push a wrapped line onto the global array, but the backing data is from text_element_data
-				array_push(&s.wrapped_text_lines, Wrapped_Text_Line{dimensions={measured_word.width, line_height}, text = string(text_element_data.text[measured_word.start_offset:measured_word.start_offset+measured_word.length])})
+				array_push(&s.wrapped_text_lines, Wrapped_Text_Line{dimensions={measured_word.width, line_height}, text = string(text_element_data.text[measured_word.start_offset:][:measured_word.length])})
 				// increment wrapped_lines length since it is backed by the global array
 				text_element_data.wrapped_lines.len += 1
 				// Move on to the next word
@@ -1823,7 +1824,7 @@ calculate_final_layout :: proc(delta_time: f32)
 			} else if measured_word.length == 0 || line_width + measured_word.width > container_element.dimensions.x {
 				// if wrapped text lines list has overflowed, just render out the line
 				final_char_is_space := text_element_data.text[max(line_start_offset + line_length_chars - 1, 0)] == ' '
-				array_push(&s.wrapped_text_lines, Wrapped_Text_Line{dimensions={final_char_is_space ? -space_width : 0, line_height}, text = string(text_element_data.text[line_start_offset:line_start_offset + line_length_chars + (final_char_is_space ? -1 : 0)])})
+				array_push(&s.wrapped_text_lines, Wrapped_Text_Line{dimensions={final_char_is_space ? -space_width : 0, line_height}, text = string(text_element_data.text[line_start_offset:][:line_length_chars + (final_char_is_space ? -1 : 0)])})
 				text_element_data.wrapped_lines.len += 1
 				if line_length_chars == 0 || measured_word.length == 0 {
 					word_idx = measured_word.next
@@ -2116,7 +2117,7 @@ calculate_final_layout :: proc(delta_time: f32)
 						push_render_command({
 							bounding_box = {current_element_bounding_box.x + offset, current_element_bounding_box.y + y_pos, line.dimensions.x, line.dimensions.y},
 							render_data = Text_Render_Data{
-								text = text_config.data.text,
+								text = line.text,
 								color = text_config.config.text_color,
 								font_id = text_config.config.font_id,
 								font_size = text_config.config.font_size,
@@ -2215,8 +2216,8 @@ calculate_final_layout :: proc(delta_time: f32)
 						case .LEFT: extra_space = 0
 						case .CENTER: extra_space /= 2
 						}
-						current_element_tree_node.next_child_offset.x += extra_space
 						extra_space = max(0, extra_space)
+						current_element_tree_node.next_child_offset.x += extra_space
 					} else {
 						for child_idx in array_iter(current_element.children) {
 							child_element := array_get_ptr(&s.layout_elements, child_idx)
@@ -2227,7 +2228,7 @@ calculate_final_layout :: proc(delta_time: f32)
 						extra_space := current_element.dimensions.y - config.layout.padding.top - config.layout.padding.bottom - content_size.y
 						#partial switch config.layout.child_alignment.y {
 						case .TOP: extra_space = 0
-						case .CENTER: extra_space /=2
+						case .CENTER: extra_space /= 2
 						}
 						extra_space = max(0, extra_space)
 						current_element_tree_node.next_child_offset.y += extra_space
@@ -2235,6 +2236,8 @@ calculate_final_layout :: proc(delta_time: f32)
 					if scroll_container_data != nil {
 						scroll_container_data.content_size = [2]f32{content_size.x + config.layout.padding.left + config.layout.padding.right, content_size.y + config.layout.padding.top + config.layout.padding.bottom}
 					}
+				} else {
+
 				}
 			} else {
 				// DFS is returning back up
@@ -2335,7 +2338,7 @@ calculate_final_layout :: proc(delta_time: f32)
 					child_config, child_is_layout := child_element.config.(Element_Declaration)
 					if config.layout.direction == .LEFT_TO_RIGHT {
 						current_element_tree_node.next_child_offset.y = config.layout.padding.top
-						white_space_around_child := current_element.dimensions.y - config.layout.padding.top + config.layout.padding.bottom - child_element.dimensions.y
+						white_space_around_child := current_element.dimensions.y - config.layout.padding.top - config.layout.padding.bottom - child_element.dimensions.y
 
 						#partial switch config.layout.child_alignment.y {
 						case .CENTER: current_element_tree_node.next_child_offset.y += white_space_around_child / 2.0
