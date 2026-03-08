@@ -276,12 +276,12 @@ Transition_State :: enum {
 	EXITING,
 }
 Transition_Property :: enum u8 {
-	ALL = 0,
-	BOUNDING_BOX = 1,
-	COLOR = 2,
-	OVERLAY_COLOR = 4,
-	CORNER_RADIUS = 8,
-	BORDER = 16,
+	ALL,
+	BOUNDING_BOX,
+	COLOR,
+	OVERLAY_COLOR,
+	CORNER_RADIUS,
+	BORDER,
 }
 Transition_Callback_Arguments :: struct {
 	state: Transition_State,
@@ -290,12 +290,12 @@ Transition_Callback_Arguments :: struct {
 	target: Transition_Data,
 	elapsed_time: f32,
 	duration: f32,
-	properties: Transition_Property
+	properties: bit_set[Transition_Property]
 }
 Transition_Element_Config :: struct {
 	handler: proc(Transition_Callback_Arguments) -> bool,
 	duration: f32,
-	properties: Transition_Property,
+	properties: bit_set[Transition_Property],
 	on_begin_enter: proc(Transition_Data) -> Transition_Data,
 	on_begin_exit: proc(Transition_Data) -> Transition_Data,
 }
@@ -475,7 +475,7 @@ State :: struct {
 DEFAULT_MAX_ELEMENT_COUNT :: 8192
 DEFAULT_MAX_MEASURE_TEXT_WORD_CACHE_COUNT :: 16384
 MAX_FLOAT : f32 : 999999999999999 // TODO
-EPSILON : f32 : 0.000001
+EPSILON : f32 : 0.01
 
 DEFAULT_LAYOUT_CONFIG: Layout_Config = {}
 DEFAULT_TEXT_ELEMENT_CONFIG: Text_Element_Config = {}
@@ -677,7 +677,6 @@ hash_number :: proc(offset: u32, seed: u32
 	return Element_ID{id = hash+1, offset = offset, base_id = seed, string_id = ""}
 }
 
-@(private="file")
 hash_string :: proc(key: string, seed: u32
 ) -> Element_ID
 {
@@ -1465,7 +1464,7 @@ size_containers_along_axis :: proc(x_axis: bool, text_elements_out: ^Array(int),
 				child_element := array_get_ptr(&s.layout_elements, child_element_index)
 				child_config, is_layout := child_element.config.(Element_Declaration)
 				child_sizing: Sizing_Type
-				       child_sizing = is_layout ? (x_axis ? child_config.layout.sizing.width.type : child_config.layout.sizing.height.type) : .FIT
+				child_sizing = is_layout ? (x_axis ? child_config.layout.sizing.width.type : child_config.layout.sizing.height.type) : .FIT
 				child_size := x_axis ? child_element.dimensions.x : child_element.dimensions.y
 
 				// If the child has children, add it to the buffer to process
@@ -1597,6 +1596,9 @@ size_containers_along_axis :: proc(x_axis: bool, text_elements_out: ^Array(int),
 
 						for child_idx := 0; child_idx < resizable_container_buffer.len; child_idx += 1 {
 							child := array_get_ptr(&s.layout_elements, array_get(resizable_container_buffer, child_idx))
+							if text_config, is_text := child.config.(Text_Declaration); is_text {
+								fmt.println(text_config.data.text)
+							}
 							child_size := x_axis ? &child.dimensions.x : &child.dimensions.y
 							max_size := x_axis ? config.layout.sizing.width.value.(Sizing_Min_Max).max : config.layout.sizing.height.value.(Sizing_Min_Max).max
 							previous_width := child_size^
@@ -1607,7 +1609,7 @@ size_containers_along_axis :: proc(x_axis: bool, text_elements_out: ^Array(int),
 									array_swapback(&resizable_container_buffer, child_idx)
 									child_idx -= 1
 								}
-								size_to_distribute -= child_size^ - previous_width
+								size_to_distribute -= (child_size^ - previous_width)
 							}
 						}
 					}
@@ -1616,17 +1618,19 @@ size_containers_along_axis :: proc(x_axis: bool, text_elements_out: ^Array(int),
 			} else {
 				for child_offset in array_iter(resizable_container_buffer) {
 					child_element := array_get_ptr(&s.layout_elements, child_offset)
-					layout_config := parent.config.(Element_Declaration).layout
-					child_sizing := x_axis ? layout_config.sizing.width : layout_config.sizing.height
+					config, is_layout := child_element.config.(Element_Declaration)
+					child_sizing := is_layout ? (x_axis ? config.layout.sizing.width : config.layout.sizing.height) : sizing_fit()
 					min_size := x_axis ? child_element.min_dimensions.x : child_element.min_dimensions.y
 					child_size := x_axis ? &child_element.dimensions.x : &child_element.dimensions.y
 					max_size := parent_size - parent_padding
 					// if laying out children of scroll panel grow containers expand to inner content not outer container
-
 					if (x_axis && config.clip.horizontal) || (!x_axis && config.clip.vertical) {
 						max_size = max(max_size, inner_content_size)
 					}
 					if child_sizing.type == .GROW {
+						if text_config, is_text := child_element.config.(Text_Declaration); is_text {
+							fmt.println(text_config.data.text, max_size, child_sizing.value.(Sizing_Min_Max).max)
+						}
 						child_size^ = min(max_size, child_sizing.value.(Sizing_Min_Max).max)
 					}
 					child_size^ = max(min_size, min(child_size^, max_size))
@@ -1713,10 +1717,10 @@ create_transition_data_for_element :: proc(bounding_box: ^Bounding_Box, layout_e
 @(private="file")
 should_transition :: proc(current: ^Transition_Data, target: ^Transition_Data) -> bool
 {
-	if current.bounding_box.x != target.bounding_box.x \
-		|| current.bounding_box.y != target.bounding_box.y \
-		|| current.bounding_box.width != target.bounding_box.width \
-		|| current.bounding_box.height != target.bounding_box.height {
+	if !float_equal(current.bounding_box.x, target.bounding_box.x) \
+		|| !float_equal(current.bounding_box.y, target.bounding_box.y) \
+		|| !float_equal(current.bounding_box.width,target.bounding_box.width) \
+		|| !float_equal(current.bounding_box.height, target.bounding_box.height) {
 		return true
 	}
 	if current.color != target.color {
@@ -1729,12 +1733,26 @@ should_transition :: proc(current: ^Transition_Data, target: ^Transition_Data) -
 }
 
 @(private="file")
+float_equal :: proc(a,b: f32) -> bool {
+	if (a-b < 0.01 && a-b > -0.01) || (b-a < 0.01 && b-a > -0.01) {
+		return true
+	}
+	return false
+}
+
+@(private="file")
 update_element_with_transition_data :: proc(bounding_box: ^Bounding_Box, layout_element: ^Layout_Element, data: ^Transition_Data)
 {
 	bounding_box^ = data.bounding_box
-	config := &layout_element.config.(Element_Declaration)
+	config := &(layout_element.config.(Element_Declaration))
+	if bounding_box.x < 17 && bounding_box.y <90 {
+		fmt.println("before:", config.color)
+	}
 	config.color = data.color
 	config.overlay_color = data.overlay_color
+	if bounding_box.x < 17 && bounding_box.y <90 {
+		fmt.println("after:", config.color)
+	}
 }
 
 @(private="file")
@@ -1996,7 +2014,7 @@ calculate_final_layout :: proc(delta_time: f32)
 		for dfs_buffer.len > 0 {
 			current_element_tree_node := array_get_ptr(&dfs_buffer, dfs_buffer.len-1)
 			current_element := current_element_tree_node.layout_element
-			config, is_layout := current_element.config.(Element_Declaration)
+			config, is_layout := &(current_element.config.(Element_Declaration))
 			scroll_offset: [2]f32
 
 			// This will only be run a single time for each element in downwards DFS order
@@ -2033,7 +2051,7 @@ calculate_final_layout :: proc(delta_time: f32)
 							target_transition_data := create_transition_data_for_element(&current_element_bounding_box, current_element)
 
 							if transition_data.state == .ENTERING {
-								if config.transition.on_begin_enter != nil {
+								if config.transition.on_begin_enter == nil {
 									transition_data.state = .IDLE
 									transition_data.initial_state = target_transition_data
 									transition_data.current_state = target_transition_data
@@ -2064,8 +2082,8 @@ calculate_final_layout :: proc(delta_time: f32)
 									duration = config.transition.duration,
 									properties = config.transition.properties
 								})
-								scroll_offset.x += current_transition_data.bounding_box.y
-								scroll_offset.y += current_transition_data.bounding_box.x
+								scroll_offset.x += current_transition_data.bounding_box.x - current_element_bounding_box.x
+								scroll_offset.y += current_transition_data.bounding_box.y - current_element_bounding_box.y
 
 								if !transition_complete {
 									update_element_with_transition_data(&current_element_bounding_box, current_element, &current_transition_data)
@@ -2088,7 +2106,6 @@ calculate_final_layout :: proc(delta_time: f32)
 						}
 					}
 				}
-
 				hash_map_item := get_hash_map_item(current_element.id)
 				if hash_map_item != nil {
 					hash_map_item.bounding_box = current_element_bounding_box
@@ -2397,25 +2414,27 @@ get_cursor_over_ids :: proc() -> Array(Element_ID)
 @(private="file")
 clone_transition_elements :: proc(root_idx: int, root_child_idx: int, exiting: bool) -> Transition_Elements_Added_Count
 {
+	s := s
         next_empty_slot_offset := 0
         next_empty_child_offset := 0
         for &data in array_iter(s.transition_datas) {
                 if (exiting && data.state != .EXITING) || (!exiting && data.state == .EXITING) {
                         continue
                 }
-                config := data.element_this_frame.config.(Element_Declaration).transition
-                if config.on_begin_exit != nil {
+                all_config, is_layout := data.element_this_frame.config.(Element_Declaration)
+                if is_layout && all_config.transition.on_begin_exit != nil {
+                	config := all_config.transition
                         bfs_buffer := s.open_layout_element_stack
                         bfs_buffer.len = 0
                         s.layout_elements.items[root_idx + next_empty_slot_offset] = data.element_this_frame^
                         array_push(&bfs_buffer, root_idx + next_empty_slot_offset)
                         current_root_idx := root_idx + next_empty_slot_offset
-                        data.element_this_frame = &s.layout_elements.items[root_idx + next_empty_slot_offset]
+                        data.element_this_frame = &(s.layout_elements.items[root_idx + next_empty_slot_offset])
                         buffer_idx := 0
                         next_empty_slot_offset += 1
                         for buffer_idx < bfs_buffer.len {
                                 // Note: this is purposefully not a range checked access - if the element has transitioned out, it will be beyond the length of the layoutElements array
-                                layout_element := &s.layout_elements.items[array_get(bfs_buffer, buffer_idx)]
+                                layout_element := &(s.layout_elements.items[array_get(bfs_buffer, buffer_idx)])
                                 buffer_idx += 1
                                 first_child_slot := root_child_idx + next_empty_child_offset
                                 for child in array_iter(layout_element.children) {
@@ -2476,7 +2495,6 @@ debug_view_scroll_view_item_layout_config : Layout_Config = {}
 // 	}
 // 	return {"Error", Color({0, 0, 0, 255} / 255)}
 // }
-@(private="file")
 idi :: proc(label: string, offset: u32) -> Element_ID {
 	return hash_string_with_offset(label, offset, 0)
 }
@@ -3450,8 +3468,9 @@ end_layout :: proc(delta_time: f32) -> []Render_Command
 	} else {
 	        transition_out_waiting_count := 0
 		for &data in array_iter(s.transition_datas) {
-		        config := data.element_this_frame.config.(Element_Declaration).transition
-			if config.on_begin_exit != nil {
+		        all_config, is_layout := data.element_this_frame.config.(Element_Declaration)
+			if is_layout && all_config.transition.on_begin_exit != nil {
+			        config := all_config.transition
 			        hash_map_item := get_hash_map_item(data.element_id)
 				if hash_map_item.generation == s.generation {
 				        if data.state != .EXITING {
@@ -3492,8 +3511,9 @@ end_layout :: proc(delta_time: f32) -> []Render_Command
 
 		calculate_final_layout(delta_time)
 
-		root_idx = s.layout_elements.cap - transition_out_waiting_count
-		root_child_idx = s.layout_element_children.cap - transition_out_waiting_count
+		// TODO why does original implementation use - transition_out_waiting_count
+		root_idx = s.layout_elements.len// - transition_out_waiting_count
+		root_child_idx = s.layout_element_children.len// - transition_out_waiting_count
 
 		clone_transition_elements(root_idx, root_child_idx, false)
 	}
@@ -3701,7 +3721,7 @@ sizing_fit :: proc(min: f32 = 0, max: f32 = MAX_FLOAT) -> Sizing_Axis
 	return {.FIT, Sizing_Min_Max{min, max}}
 }
 
-sizing_grow :: proc(min: f32 = 0, max: f32 = 0) -> Sizing_Axis
+sizing_grow :: proc(min: f32 = 0, max: f32 = MAX_FLOAT) -> Sizing_Axis
 {
 	return {.GROW, Sizing_Min_Max{min, max}}
 }
