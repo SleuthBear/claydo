@@ -1,6 +1,6 @@
 package main
 
-import "../claydo"
+import "../../claydo"
 import "core:c"
 import "core:fmt"
 import "vendor:raylib"
@@ -78,7 +78,6 @@ LandingPageBlob :: proc(index: u32, font_size: f32, font_id: u16, color: claydo.
 }
 
 LandingPageDesktop :: proc() {
-        fmt.println("Desktop")
     if claydo.ui(claydo.id("LandingPage1Desktop"))({
         layout = { sizing = { width = claydo.sizing_grow(), height = claydo.sizing_fit(min = cast(f32)windowHeight - 70) }, child_alignment = { y = .CENTER }, padding = { left = 50, right = 50 } },
     }) {
@@ -436,15 +435,13 @@ createLayout :: proc(lerpValue: f32, dt: f32) -> []claydo.Render_Command {
                 DeclarativeSyntaxPageDesktop()
                 HighPerformancePageDesktop(lerpValue)
                 RendererPageDesktop()
+            } else {
+                LandingPageMobile()
+                FeatureBlocksMobile()
+                DeclarativeSyntaxPageMobile()
+                HighPerformancePageMobile(lerpValue)
+                RendererPageMobile()
             }
-            // } else {
-            //         fmt.println("mobile")
-            //     LandingPageMobile()
-            //     FeatureBlocksMobile()
-            //     DeclarativeSyntaxPageMobile()
-            //     HighPerformancePageMobile(lerpValue)
-            //     RendererPageMobile()
-            // }
         }
     }
     return claydo.end_layout(dt)

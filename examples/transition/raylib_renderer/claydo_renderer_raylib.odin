@@ -1,8 +1,8 @@
-package main
+package raylib_renderer
 
 import "core:unicode/utf8"
 import "base:runtime"
-import "../../claydo"
+import "../../../claydo"
 import "core:math"
 import "core:strings"
 import rl "vendor:raylib"
@@ -212,6 +212,11 @@ clay_raylib_render :: proc(render_commands: []claydo.Render_Command, allocator :
                     config.color,
                 )
             }
+        // TODO enable
+            // case .COLOR_OVERLAY_START:
+       	// 	SetColorOverlay(render_command.render_data.(claydo.Color_Overlay_Render_Data))
+        // case .COLOR_OVERLAY_END:
+       	// 	DisableColorOverlay()
         case .CUSTOM:
             // Implement custom element rendering here
         }
@@ -247,4 +252,59 @@ draw_rect :: proc(x, y, w, h: f32, color: claydo.Color) {
 @(private = "file")
 draw_rect_rounded :: proc(x,y,w,h: f32, radius: f32, color: claydo.Color){
     rl.DrawRectangleRounded({x,y,w,h},radius,8,clay_color_to_rl_color(color))
+}
+
+raylib_initialize :: proc(width: int, height: int, title: string, flags: rl.ConfigFlags) {
+    rl.SetConfigFlags(flags);
+    rl.InitWindow(i32(width), i32(height), strings.clone_to_cstring(title));
+    init_overlay();
+}
+
+overlayShaderCode := `#version 330
+                                in vec2 fragTexCoord;
+                                in vec4 fragColor;
+                                uniform sampler2D texture0;
+                                uniform vec4 overlayColor;
+                                out vec4 finalColor;
+                                void main()
+                                {
+                                    vec4 texelColor = texture(texture0, fragTexCoord) * fragColor;
+                                    vec3 blendedRGB = mix(texelColor.rgb, overlayColor.rgb, overlayColor.a);
+                                    finalColor = vec4(blendedRGB, texelColor.a);
+                                }`
+
+overlayShader: rl.Shader
+colorLoc: int
+overlayEnabled := false;
+
+init_overlay :: proc() {
+    overlayShader := rl.LoadShaderFromMemory("", strings.clone_to_cstring(overlayShaderCode));
+    colorLoc := rl.GetShaderLocation(overlayShader, "overlayColor");
+}
+
+SetColorOverlay :: proc (color: claydo.Color_Overlay_Render_Data) {
+        overlayEnabled = true;
+        colorFloat := [?]f32{
+	        f32(color.r),
+	        f32(color.g),
+	        f32(color.b),
+	        f32(color.a),
+        }
+    rl.SetShaderValue(overlayShader, colorLoc, rawptr(&colorFloat), .VEC4);
+    rl.BeginShaderMode(overlayShader);
+}
+
+DisableColorOverlay :: proc() {
+    if (overlayEnabled) {
+        rl.EndShaderMode();
+        overlayEnabled = false;
+    }
+}
+
+load_font :: proc(font_id: u16, font_size: u16, path: cstring) {
+    assign_at(&raylib_fonts,font_id,Raylib_Font{
+        font   = rl.LoadFontEx(path, cast(i32)font_size * 2, nil, 0),
+        fontId = cast(u16)font_id,
+    })
+    rl.SetTextureFilter(raylib_fonts[font_id].font.texture, rl.TextureFilter.TRILINEAR)
 }
