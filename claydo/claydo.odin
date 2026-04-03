@@ -2024,7 +2024,10 @@ calculate_final_layout :: proc(delta_time: f32) {
 				array_push(
 					&s.wrapped_text_lines,
 					Wrapped_Text_Line {
-						dimensions = {final_char_is_space ? -space_width : 0, line_height},
+						dimensions = {
+							line_width + (final_char_is_space ? -space_width : 0),
+							line_height,
+						},
 						text = string(
 							text_element_data.text[line_start_offset:][:line_length_chars +
 							(final_char_is_space ? -1 : 0)],
