@@ -25,10 +25,10 @@ frameArena: claydo.Arena
 
 HandleHeaderButtonInteraction :: proc(
 	elementId: claydo.ElementID,
-	cursorData: claydo.CursorData,
+	PointerData: claydo.PointerData,
 	userData: rawptr,
 ) {
-	if (cursorData.state == .PRESSED_THIS_FRAME) {
+	if (PointerData.state == .PRESSED_THIS_FRAME) {
 		// Do some click handling
 	}
 }
@@ -42,7 +42,7 @@ HeaderButtonStyle :: proc(hovered: bool) -> claydo.ElementDeclaration {
 
 // Examples of re-usable "Components"
 RenderHeaderButton :: proc(text: string) {
-	{claydo.ui()(HeaderButtonStyle(claydo.hovered()))
+	{claydo.UI()(HeaderButtonStyle(claydo.hovered()))
 		claydo.text(text, headerTextConfig)
 	}
 }
@@ -56,7 +56,7 @@ dropdownTextElementConfig := claydo.TextElementConfig {
 }
 
 RenderDropdownTextItem :: proc(index: int) {
-	{claydo.ui()({layout = dropdownTextItemLayout, backgroundColor = ({180, 180, 180, 255} / 255)})
+	{claydo.UI()({layout = dropdownTextItemLayout, backgroundColor = ({180, 180, 180, 255} / 255)})
 		claydo.text("I'm a text field in a scroll container.", dropdownTextElementConfig)
 	}
 }
@@ -125,20 +125,20 @@ add :: proc(array: []SortableBox, length: int, index: int, toAdd: SortableBox) {
 
 HandleRandomiseButtonInteraction :: proc(
 	elementId: claydo.ElementID,
-	cursorData: claydo.CursorData,
+	PointerData: claydo.PointerData,
 	userData: rawptr,
 ) {
-	if (cursorData.state == .PRESSED_THIS_FRAME) {
+	if (PointerData.state == .PRESSED_THIS_FRAME) {
 		shuffle(colors[:], cellCount)
 	}
 }
 
 HandlePinkButtonInteraction :: proc(
 	elementId: claydo.ElementID,
-	cursorData: claydo.CursorData,
+	PointerData: claydo.PointerData,
 	userData: rawptr,
 ) {
-	if (cursorData.state == .PRESSED_THIS_FRAME) {
+	if (PointerData.state == .PRESSED_THIS_FRAME) {
 		for i := 0; i < cellCount; i += 1 {
 			index := colors[i].id
 			fIndex := f32(index)
@@ -153,10 +153,10 @@ HandlePinkButtonInteraction :: proc(
 
 HandleNewButtonInteraction :: proc(
 	elementId: claydo.ElementID,
-	cursorData: claydo.CursorData,
+	PointerData: claydo.PointerData,
 	userData: rawptr,
 ) {
-	if (cursorData.state == .PRESSED_THIS_FRAME) {
+	if (PointerData.state == .PRESSED_THIS_FRAME) {
 		randomIndex := int(rand.int63()) % (cellCount + 1)
 		newId := maxCount
 		fNewId := f32(newId)
@@ -180,10 +180,10 @@ HandleNewButtonInteraction :: proc(
 
 HandleBlueButtonInteraction :: proc(
 	elementId: claydo.ElementID,
-	cursorData: claydo.CursorData,
+	PointerData: claydo.PointerData,
 	userData: rawptr,
 ) {
-	if cursorData.state == .PRESSED_THIS_FRAME {
+	if PointerData.state == .PRESSED_THIS_FRAME {
 		for i := 0; i < cellCount; i += 1 {
 			index := colors[i].id
 			fIndex := f32(index)
@@ -198,7 +198,7 @@ HandleBlueButtonInteraction :: proc(
 
 CreateLayout :: proc() -> []claydo.RenderCommand {
 	claydo.beginLayout()
-	{claydo.ui(claydo.id("OuterContainer"))(
+	{claydo.UI(claydo.id("OuterContainer"))(
 		{
 			layout = {
 				direction = .TOP_TO_BOTTOM,
@@ -209,7 +209,7 @@ CreateLayout :: proc() -> []claydo.RenderCommand {
 			backgroundColor = cWHITE,
 		},
 		)
-		{claydo.ui()(
+		{claydo.UI()(
 			{
 				layout = {
 					sizing = {claydo.sizingGrow(), claydo.sizingFixed(60)},
@@ -221,7 +221,7 @@ CreateLayout :: proc() -> []claydo.RenderCommand {
 				backgroundColor = ({174, 143, 204, 255} / 255),
 			},
 			)
-			{claydo.ui(claydo.id("ShuffleButton"))(
+			{claydo.UI(claydo.id("ShuffleButton"))(
 				{
 					backgroundColor = claydo.hovered() ? ({154, 123, 184, 255} / 255) : {},
 					layout = {padding = {16, 16, 8, 8}},
@@ -232,7 +232,7 @@ CreateLayout :: proc() -> []claydo.RenderCommand {
 				claydo.onHover(HandleRandomiseButtonInteraction, nil)
 				claydo.text("Randomise", {fontSize = 20, textColor = cWHITE})
 			}
-			{claydo.ui(claydo.id("bluebutton"))(
+			{claydo.UI(claydo.id("bluebutton"))(
 				{
 					backgroundColor = claydo.hovered() ? ({154, 123, 184, 255} / 255) : {},
 					layout = {padding = {16, 16, 8, 8}},
@@ -243,7 +243,7 @@ CreateLayout :: proc() -> []claydo.RenderCommand {
 				claydo.onHover(HandleBlueButtonInteraction, nil)
 				claydo.text("Blue", {fontSize = 20, textColor = cWHITE})
 			}
-			{claydo.ui(claydo.id("PinkButton"))(
+			{claydo.UI(claydo.id("PinkButton"))(
 				{
 					backgroundColor = claydo.hovered() ? ({154, 123, 184, 255} / 255) : {},
 					layout = {padding = {16, 16, 8, 8}},
@@ -254,7 +254,7 @@ CreateLayout :: proc() -> []claydo.RenderCommand {
 				claydo.onHover(HandlePinkButtonInteraction, nil)
 				claydo.text("Pink", {fontSize = 20, textColor = cWHITE})
 			}
-			{claydo.ui(claydo.id("AddButton"))(
+			{claydo.UI(claydo.id("AddButton"))(
 				{
 					backgroundColor = claydo.hovered() ? ({154, 123, 184, 255} / 255) : {},
 					layout = {padding = {16, 16, 8, 8}},
@@ -267,7 +267,7 @@ CreateLayout :: proc() -> []claydo.RenderCommand {
 			}
 		}
 		for i := 0; i < 5; i += 1 {
-			{claydo.ui(claydo.idi("row", u32(i)))({layout = {childGap = 12, sizing = GG}})
+			{claydo.UI(claydo.idi("row", u32(i)))({layout = {childGap = 12, sizing = GG}})
 				for j := 0; j < 6; j += 1 {
 					index := i * 6 + j
 					if (index >= cellCount) {
@@ -279,7 +279,7 @@ CreateLayout :: proc() -> []claydo.RenderCommand {
 						colors[index].color.b * 0.9,
 						1,
 					}
-					{claydo.ui(claydo.idi("box", u32(colors[index].id)))(
+					{claydo.UI(claydo.idi("box", u32(colors[index].id)))(
 						{
 							layout = {sizing = GG, childAlignment = {.CENTER, .CENTER}},
 							backgroundColor = colors[index].color,
@@ -339,7 +339,7 @@ UpdateDrawFrame :: proc() {
 	//----------------------------------------------------------------------------------
 	// Handle scroll containers
 	mousePosition := rl.GetMousePosition()
-	claydo.setCursorState(mousePosition, rl.IsMouseButtonDown(.LEFT) && !scrollbarData.mouseDown)
+	claydo.setPointerState(mousePosition, rl.IsMouseButtonDown(.LEFT) && !scrollbarData.mouseDown)
 	claydo.setLayoutDimensions({f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())})
 	if (!rl.IsMouseButtonDown(.LEFT)) {
 		scrollbarData.mouseDown = false
@@ -347,7 +347,7 @@ UpdateDrawFrame :: proc() {
 
 	if (rl.IsMouseButtonDown(.LEFT) &&
 		   !scrollbarData.mouseDown &&
-		   claydo.cursorOver(claydo.hashString("ScrollBar", 0))) {
+		   claydo.pointerOver(claydo.hashString("ScrollBar", 0))) {
 		scrollContainerData := claydo.getScrollContainerData(claydo.hashString("MainContent", 0))
 		scrollbarData.clickOrigin = mousePosition
 		scrollbarData.positionOrigin = scrollContainerData.scrollPosition^
