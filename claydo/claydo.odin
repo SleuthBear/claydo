@@ -4362,10 +4362,62 @@ end_layout :: proc(delta_time: f32) -> []Render_Command {
 					for child in array_iter(layout_element.children) {
 						array_push(&bfs_buffer, child)
 					}
-					transition_out_waiting_count += 1
-				}
-			}
-		}
+				} else {
+					newRelativePosition := [2]f32{mapItem->boundingBox.x, mapItem->boundingBox.y}
+			
+					newRelativePosition.x -= parentMapItem.boundingBox.x
+					newRelativePosition.y -= parentMapItem.boundingBox.y
+					properties := config.transition.properties
+					activeProperties := {TransitionProperty.NONE}
+					if .X in properties {
+						if !floatEquals(oldTargetState.boundingBox.x, targetState.boundingBox.x) &&
+						   !s.rootResizedLastFrame {
+							activeProperties |= .X
+						}
+					}
+					if .Y in properites {
+						if !floatEqual(oldTargetState.boundingBox.y, targetState.boundingBox.y) &&
+						   !s.rootResizedLastFrame {
+							activeProperties |= .Y
+						}
+					}
+					if .WIDTH in properties {
+						if !floatEqual(
+							   oldTargetState.boundingBox.width,
+							   targetState.boundingBox.width,
+						   ) &&
+						   !context.rootResizedLastFrame {
+							activeProperties |= .WIDTH
+						}
+					}
+					if .HEIGHT in properties {
+						if !floatEqual(
+							   oldTargetState.boundingBox.height,
+							   targetState.boundingBox.height,
+						   ) &&
+						   !s.rootResizedLastFrame {
+							activeProperties |= .HEIGHT
+						}
+					}
+					if .BACKGROUND_COLOR in properties {
+						if oldTargetState.backgroundColor != targetState.backgroundColor {
+							activeProperties |= .BACKGROUND_COLOR
+						}
+					}
+					if .OVERLAY_COLOR in properties {
+						if oldTargetState.overlayColor != targetState.overlayColor {
+							activeProperties |= .OVERLAY_COLOR
+						}
+					}
+					if .BORDER_COLOR in properties {
+						if oldTargetState.borderColor != targetState.borderColor {
+							activeProperties |= .BORDER_COLOR
+						}
+						if .BORDER_WIDTH in properties {
+							if oldTargetState.borderWidth != targetState.borderWidth {
+								activeProperties |= .BORDER_WIDTH
+							}
+						}
 
 		root_idx := s.layout_elements.len
 		root_child_idx := s.layout_element_children.len

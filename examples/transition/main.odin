@@ -14,27 +14,30 @@ COLOR_BLUE := claydo.Color{111, 173, 162, 255} / 255
 
 profilePicture: rl.Texture2D
 profileText := "Profile Page one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen"
-headerTextConfig := claydo.Text_Element_Config {
-	font_id    = 1,
-	spacing    = 5,
-	font_size  = 16,
-	text_color = {0, 0, 0, 255},
+headerTextConfig := claydo.TextElementConfig {
+	fontId    = 1,
+	spacing   = 5,
+	fontSize  = 16,
+	textColor = {0, 0, 0, 255},
 }
 
 frameArena: claydo.Arena
 
 HandleHeaderButtonInteraction :: proc(
-	elementId: claydo.Element_ID,
-	cursor_data: claydo.Cursor_Data,
+	elementId: claydo.ElementID,
+	cursorData: claydo.CursorData,
 	userData: rawptr,
 ) {
-	if (cursor_data.state == .PRESSED_THIS_FRAME) {
+	if (cursorData.state == .PRESSED_THIS_FRAME) {
 		// Do some click handling
 	}
 }
 
-HeaderButtonStyle :: proc(hovered: bool) -> claydo.Element_Declaration {
-	return {layout = {padding = {16, 16, 8, 8}}, color = hovered ? COLOR_ORANGE : COLOR_BLUE}
+HeaderButtonStyle :: proc(hovered: bool) -> claydo.ElementDeclaration {
+	return {
+		layout = {padding = {16, 16, 8, 8}},
+		backgroundColor = hovered ? COLOR_ORANGE : COLOR_BLUE,
+	}
 }
 
 // Examples of re-usable "Components"
@@ -44,16 +47,16 @@ RenderHeaderButton :: proc(text: string) {
 	}
 }
 
-dropdownTextItemLayout := claydo.Layout_Config {
+dropdownTextItemLayout := claydo.LayoutConfig {
 	padding = {8, 8, 4, 4},
 }
-dropdownTextElementConfig := claydo.Text_Element_Config {
-	font_size  = 24,
-	text_color = {1, 1, 1, 1},
+dropdownTextElementConfig := claydo.TextElementConfig {
+	fontSize  = 24,
+	textColor = {1, 1, 1, 1},
 }
 
 RenderDropdownTextItem :: proc(index: int) {
-	{claydo.ui()({layout = dropdownTextItemLayout, color = ({180, 180, 180, 255} / 255)})
+	{claydo.ui()({layout = dropdownTextItemLayout, backgroundColor = ({180, 180, 180, 255} / 255)})
 		claydo.text("I'm a text field in a scroll container.", dropdownTextElementConfig)
 	}
 }
@@ -73,8 +76,8 @@ colors: [100]SortableBox
 blueColor := false
 
 GG := claydo.Sizing {
-	{.GROW, claydo.Sizing_Min_Max{0, claydo.MAX_FLOAT}},
-	{.GROW, claydo.Sizing_Min_Max{0, claydo.MAX_FLOAT}},
+	{.GROW, claydo.SizingMinMax{0, claydo.MAX_FLOAT}},
+	{.GROW, claydo.SizingMinMax{0, claydo.MAX_FLOAT}},
 }
 
 cWHITE := claydo.Color{255, 255, 255, 255} / 255
@@ -83,86 +86,20 @@ Test :: struct {
 	value: int,
 }
 
-EaseOut :: proc(arguments: claydo.Transition_Callback_Arguments) -> bool {
-	ratio := arguments.elapsed_time / arguments.duration
-	if arguments.elapsed_time < arguments.duration {
-		lerpAmount := 1 - math.pow(1 - ratio, 3.0)
-		allProperties := .ALL in arguments.properties
-		if allProperties || .BOUNDING_BOX in arguments.properties {
-			arguments.current.bounding_box = {
-				x      = rl.Lerp(
-					arguments.initial.bounding_box.x,
-					arguments.target.bounding_box.x,
-					lerpAmount,
-				),
-				y      = rl.Lerp(
-					arguments.initial.bounding_box.y,
-					arguments.target.bounding_box.y,
-					lerpAmount,
-				),
-				width  = rl.Lerp(
-					arguments.initial.bounding_box.width,
-					arguments.target.bounding_box.width,
-					lerpAmount,
-				),
-				height = rl.Lerp(
-					arguments.initial.bounding_box.height,
-					arguments.target.bounding_box.height,
-					lerpAmount,
-				),
-			}
-		} else {
-			arguments.current.bounding_box = arguments.target.bounding_box
-		}
-		if (allProperties || .COLOR in arguments.properties) {
-			arguments.current.color = {
-				rl.Lerp(arguments.initial.color.r, arguments.target.color.r, lerpAmount),
-				rl.Lerp(arguments.initial.color.g, arguments.target.color.g, lerpAmount),
-				rl.Lerp(arguments.initial.color.b, arguments.target.color.b, lerpAmount),
-				rl.Lerp(arguments.initial.color.a, arguments.target.color.a, lerpAmount),
-			}
-		} else {
-			arguments.current.color = arguments.target.color
-		}
-		if allProperties || .OVERLAY_COLOR in arguments.properties {
-			arguments.current.overlay_color = {
-				rl.Lerp(
-					arguments.initial.overlay_color.r,
-					arguments.target.overlay_color.r,
-					lerpAmount,
-				),
-				rl.Lerp(
-					arguments.initial.overlay_color.g,
-					arguments.target.overlay_color.g,
-					lerpAmount,
-				),
-				rl.Lerp(
-					arguments.initial.overlay_color.b,
-					arguments.target.overlay_color.b,
-					lerpAmount,
-				),
-				rl.Lerp(
-					arguments.initial.overlay_color.a,
-					arguments.target.overlay_color.a,
-					lerpAmount,
-				),
-			}
-		} else {
-			arguments.current.overlay_color = arguments.target.overlay_color
-		}
-		return false
-	} else {
-		return true
-	}
-}
-
-
-EnterExitSlideUp :: proc(initialState: claydo.Transition_Data) -> claydo.Transition_Data {
+EnterExitSlideUp :: proc(
+	initialState: claydo.TransitionData,
+	properties: bit_set[claydo.TransitionProperty],
+) -> claydo.TransitionData {
 	targetState := initialState
-	targetState.bounding_box.y += 20
-	targetState.overlay_color = {1, 1, 1, 1}
+	if .Y in properties {
+		targetState.boundingBox.y += 20
+	}
+	if .OVERLAY_COLOR in properties {
+		targetState.overlayColor = claydo.Color{255, 255, 255, 255} / 255
+	}
 	return targetState
 }
+
 // Swaps two elements in an array
 swap :: proc(a: ^SortableBox, b: ^SortableBox) {
 	temp := a^
@@ -187,8 +124,8 @@ add :: proc(array: []SortableBox, length: int, index: int, toAdd: SortableBox) {
 
 
 HandleRandomiseButtonInteraction :: proc(
-	elementId: claydo.Element_ID,
-	cursorData: claydo.Cursor_Data,
+	elementId: claydo.ElementID,
+	cursorData: claydo.CursorData,
 	userData: rawptr,
 ) {
 	if (cursorData.state == .PRESSED_THIS_FRAME) {
@@ -197,8 +134,8 @@ HandleRandomiseButtonInteraction :: proc(
 }
 
 HandlePinkButtonInteraction :: proc(
-	elementId: claydo.Element_ID,
-	cursorData: claydo.Cursor_Data,
+	elementId: claydo.ElementID,
+	cursorData: claydo.CursorData,
 	userData: rawptr,
 ) {
 	if (cursorData.state == .PRESSED_THIS_FRAME) {
@@ -215,8 +152,8 @@ HandlePinkButtonInteraction :: proc(
 }
 
 HandleNewButtonInteraction :: proc(
-	elementId: claydo.Element_ID,
-	cursorData: claydo.Cursor_Data,
+	elementId: claydo.ElementID,
+	cursorData: claydo.CursorData,
 	userData: rawptr,
 ) {
 	if (cursorData.state == .PRESSED_THIS_FRAME) {
@@ -242,8 +179,8 @@ HandleNewButtonInteraction :: proc(
 
 
 HandleBlueButtonInteraction :: proc(
-	elementId: claydo.Element_ID,
-	cursorData: claydo.Cursor_Data,
+	elementId: claydo.ElementID,
+	cursorData: claydo.CursorData,
 	userData: rawptr,
 ) {
 	if cursorData.state == .PRESSED_THIS_FRAME {
@@ -259,78 +196,78 @@ HandleBlueButtonInteraction :: proc(
 	}
 }
 
-CreateLayout :: proc() -> []claydo.Render_Command {
-	claydo.begin_layout()
+CreateLayout :: proc() -> []claydo.RenderCommand {
+	claydo.beginLayout()
 	{claydo.ui(claydo.id("OuterContainer"))(
 		{
 			layout = {
 				direction = .TOP_TO_BOTTOM,
-				sizing = {width = claydo.sizing_grow(), height = claydo.sizing_grow()},
+				sizing = {width = claydo.sizingGrow(), height = claydo.sizingGrow()},
 				padding = {16, 16, 16, 16},
-				child_gap = 12,
+				childGap = 12,
 			},
-			color = cWHITE,
+			backgroundColor = cWHITE,
 		},
 		)
 		{claydo.ui()(
 			{
 				layout = {
-					sizing = {claydo.sizing_grow(), claydo.sizing_fixed(60)},
+					sizing = {claydo.sizingGrow(), claydo.sizingFixed(60)},
 					padding = {left = 16},
-					child_gap = 16,
-					child_alignment = {y = .CENTER},
+					childGap = 16,
+					childAlignment = {y = .CENTER},
 				},
-				corner_radius = {12, 12, 12, 12},
-				color = ({174, 143, 204, 255} / 255),
+				cornerRadius = {12, 12, 12, 12},
+				backgroundColor = ({174, 143, 204, 255} / 255),
 			},
 			)
 			{claydo.ui(claydo.id("ShuffleButton"))(
 				{
-					color = claydo.hovered() ? ({154, 123, 184, 255} / 255) : {},
+					backgroundColor = claydo.hovered() ? ({154, 123, 184, 255} / 255) : {},
 					layout = {padding = {16, 16, 8, 8}},
-					corner_radius = claydo.corner_radius_all(6),
-					border = {color = cWHITE, width = claydo.border_outside(2)},
+					cornerRadius = claydo.cornerRadiusAll(6),
+					border = {color = cWHITE, width = claydo.borderOutside(2)},
 				},
 				)
-				claydo.on_hover(HandleRandomiseButtonInteraction, nil)
-				claydo.text("Randomise", {font_size = 20, text_color = cWHITE})
+				claydo.onHover(HandleRandomiseButtonInteraction, nil)
+				claydo.text("Randomise", {fontSize = 20, textColor = cWHITE})
 			}
 			{claydo.ui(claydo.id("bluebutton"))(
 				{
-					color = claydo.hovered() ? ({154, 123, 184, 255} / 255) : {},
+					backgroundColor = claydo.hovered() ? ({154, 123, 184, 255} / 255) : {},
 					layout = {padding = {16, 16, 8, 8}},
-					corner_radius = claydo.corner_radius_all(6),
-					border = {color = cWHITE, width = claydo.border_outside(2)},
+					cornerRadius = claydo.cornerRadiusAll(6),
+					border = {color = cWHITE, width = claydo.borderOutside(2)},
 				},
 				)
-				claydo.on_hover(HandleBlueButtonInteraction, nil)
-				claydo.text("Blue", {font_size = 20, text_color = cWHITE})
+				claydo.onHover(HandleBlueButtonInteraction, nil)
+				claydo.text("Blue", {fontSize = 20, textColor = cWHITE})
 			}
 			{claydo.ui(claydo.id("PinkButton"))(
 				{
-					color = claydo.hovered() ? ({154, 123, 184, 255} / 255) : {},
+					backgroundColor = claydo.hovered() ? ({154, 123, 184, 255} / 255) : {},
 					layout = {padding = {16, 16, 8, 8}},
-					corner_radius = claydo.corner_radius_all(6),
-					border = {color = cWHITE, width = claydo.border_outside(2)},
+					cornerRadius = claydo.cornerRadiusAll(6),
+					border = {color = cWHITE, width = claydo.borderOutside(2)},
 				},
 				)
-				claydo.on_hover(HandlePinkButtonInteraction, nil)
-				claydo.text("Pink", {font_size = 20, text_color = cWHITE})
+				claydo.onHover(HandlePinkButtonInteraction, nil)
+				claydo.text("Pink", {fontSize = 20, textColor = cWHITE})
 			}
 			{claydo.ui(claydo.id("AddButton"))(
 				{
-					color = claydo.hovered() ? ({154, 123, 184, 255} / 255) : {},
+					backgroundColor = claydo.hovered() ? ({154, 123, 184, 255} / 255) : {},
 					layout = {padding = {16, 16, 8, 8}},
-					corner_radius = claydo.corner_radius_all(6),
-					border = {color = cWHITE, width = claydo.border_outside(2)},
+					cornerRadius = claydo.cornerRadiusAll(6),
+					border = {color = cWHITE, width = claydo.borderOutside(2)},
 				},
 				)
-				claydo.on_hover(HandleNewButtonInteraction, nil)
-				claydo.text("Add Box", {font_size = 20, text_color = cWHITE})
+				claydo.onHover(HandleNewButtonInteraction, nil)
+				claydo.text("Add Box", {fontSize = 20, textColor = cWHITE})
 			}
 		}
 		for i := 0; i < 5; i += 1 {
-			{claydo.ui(claydo.idi("row", u32(i)))({layout = {child_gap = 12, sizing = GG}})
+			{claydo.ui(claydo.idi("row", u32(i)))({layout = {childGap = 12, sizing = GG}})
 				for j := 0; j < 6; j += 1 {
 					index := i * 6 + j
 					if (index >= cellCount) {
@@ -344,17 +281,17 @@ CreateLayout :: proc() -> []claydo.Render_Command {
 					}
 					{claydo.ui(claydo.idi("box", u32(colors[index].id)))(
 						{
-							layout = {sizing = GG, child_alignment = {.CENTER, .CENTER}},
-							color = colors[index].color,
-							overlay_color = claydo.hovered() ? ({80, 80, 80, 80} / 255) : {1, 1, 1, 0},
-							corner_radius = {12, 12, 12, 12},
-							border = {darker, claydo.border_outside(3)},
+							layout = {sizing = GG, childAlignment = {.CENTER, .CENTER}},
+							backgroundColor = colors[index].color,
+							overlayColor = claydo.hovered() ? ({80, 80, 80, 80} / 255) : {1, 1, 1, 0},
+							cornerRadius = {12, 12, 12, 12},
+							border = {darker, claydo.borderOutside(3)},
 							transition = {
-								handler = EaseOut,
+								handler = claydo.easeOut,
 								duration = 0.5,
-								properties = {.COLOR, .OVERLAY_COLOR, .BOUNDING_BOX},
-								on_begin_enter = EnterExitSlideUp,
-								on_begin_exit = EnterExitSlideUp,
+								properties = {.WIDTH, .X, .Y, .BACKGROUND_COLOR, .OVERLAY_COLOR},
+								enter = {setInitialState = EnterExitSlideUp},
+								exit = {setFinalState = EnterExitSlideUp},
 							},
 						},
 						)
@@ -367,8 +304,8 @@ CreateLayout :: proc() -> []claydo.Render_Command {
 						claydo.text(
 							colors[index].stringId,
 							{
-								font_size = 32,
-								text_color = colors[index].id > 29 ? ({255, 255, 255, 255} / 255) : ({154, 123, 184, 255} / 255),
+								fontSize = 32,
+								textColor = colors[index].id > 29 ? ({255, 255, 255, 255} / 255) : ({154, 123, 184, 255} / 255),
 							},
 						)
 					}
@@ -376,7 +313,7 @@ CreateLayout :: proc() -> []claydo.Render_Command {
 			}
 		}
 	}
-	return claydo.end_layout(rl.GetFrameTime())
+	return claydo.endLayout(rl.GetFrameTime())
 }
 
 
@@ -397,86 +334,80 @@ UpdateDrawFrame :: proc() {
 
 	if (rl.IsKeyPressed(.D)) {
 		debugEnabled = !debugEnabled
-		claydo.set_debug_mode_enabled(debugEnabled)
+		claydo.setDebugModeEnabled(debugEnabled)
 	}
 	//----------------------------------------------------------------------------------
 	// Handle scroll containers
 	mousePosition := rl.GetMousePosition()
-	claydo.set_cursor_state(mousePosition, rl.IsMouseButtonDown(.LEFT) && !scrollbarData.mouseDown)
-	claydo.set_layout_dimensions({f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())})
+	claydo.setCursorState(mousePosition, rl.IsMouseButtonDown(.LEFT) && !scrollbarData.mouseDown)
+	claydo.setLayoutDimensions({f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())})
 	if (!rl.IsMouseButtonDown(.LEFT)) {
 		scrollbarData.mouseDown = false
 	}
 
 	if (rl.IsMouseButtonDown(.LEFT) &&
 		   !scrollbarData.mouseDown &&
-		   claydo.cursor_over(claydo.hash_string("ScrollBar", 0))) {
-		scrollContainerData := claydo.get_scroll_container_data(
-			claydo.hash_string("MainContent", 0),
-		)
+		   claydo.cursorOver(claydo.hashString("ScrollBar", 0))) {
+		scrollContainerData := claydo.getScrollContainerData(claydo.hashString("MainContent", 0))
 		scrollbarData.clickOrigin = mousePosition
-		scrollbarData.positionOrigin = scrollContainerData.scroll_position^
+		scrollbarData.positionOrigin = scrollContainerData.scrollPosition^
 		scrollbarData.mouseDown = true
 	} else if (scrollbarData.mouseDown) {
-		scrollContainerData := claydo.get_scroll_container_data(
-			claydo.hash_string("MainContent", 0),
-		)
-		if (scrollContainerData.content_dimensions.y > 0) {
+		scrollContainerData := claydo.getScrollContainerData(claydo.hashString("MainContent", 0))
+		if (scrollContainerData.contentDimensions.y > 0) {
 			ratio: [2]f32 = {
-				scrollContainerData.content_dimensions.x / scrollContainerData.dimensions.x,
-				scrollContainerData.content_dimensions.x / scrollContainerData.dimensions.y,
+				scrollContainerData.contentDimensions.x / scrollContainerData.dimensions.x,
+				scrollContainerData.contentDimensions.x / scrollContainerData.dimensions.y,
 			}
 			if (scrollContainerData.config.vertical) {
-				scrollContainerData.scroll_position.y =
+				scrollContainerData.scrollPosition.y =
 					scrollbarData.positionOrigin.y +
 					(scrollbarData.clickOrigin.y - mousePosition.y) * ratio.y
 			}
 			if (scrollContainerData.config.horizontal) {
-				scrollContainerData.scroll_position.x =
+				scrollContainerData.scrollPosition.x =
 					scrollbarData.positionOrigin.x +
 					(scrollbarData.clickOrigin.x - mousePosition.x) * ratio.x
 			}
 		}
 	}
 
-	claydo.update_scroll_containers(true, {mouseWheelX, mouseWheelY}, rl.GetFrameTime())
+	claydo.updateScrollContainers(true, {mouseWheelX, mouseWheelY}, rl.GetFrameTime())
 	// Generate the auto layout for rendering
 	currentTime := rl.GetTime()
 	renderCommands := CreateLayout()
 	// RENDERING ---------------------------------
 	rl.BeginDrawing()
 	rl.ClearBackground(rl.BLACK)
-	rr.clay_raylib_render(renderCommands)
+	rr.clayRaylibRender(renderCommands)
 	rl.EndDrawing()
 	//----------------------------------------------------------------------------------
 }
 
 reinitializeClay := false
 
-HandleClayErrors :: proc(errorData: claydo.Error_Data) {
+HandleClayErrors :: proc(errorData: claydo.ErrorData) {
 	fmt.println(errorData.text)
 	if (errorData.type == .ELEMENTS_CAPACITY_EXCEEDED) {
 		reinitializeClay = true
-		claydo.set_max_element_count(claydo.get_max_element_count() * 2)
+		claydo.setMaxElementCount(claydo.getMaxElementCount() * 2)
 	} else if (errorData.type == .MEASUREMENT_CAPACITY_EXCEEDED) {
 		reinitializeClay = true
-		claydo.set_max_measure_text_cache_word_count(
-			claydo.get_max_measure_text_cache_word_count() * 2,
-		)
+		claydo.setMaxMeasureTextCacheWordCount(claydo.getMaxMeasureTextCacheWordCount() * 2)
 	}
 }
 
 main :: proc() {
-	claydo.set_max_element_count(8192 * 2)
-	totalMemorySize := claydo.min_memory_size()
-	arena: claydo.Arena = claydo.create_arena_with_capacity(totalMemorySize)
+	claydo.setMaxElementCount(8192 * 2)
+	totalMemorySize := claydo.minMemorySize()
+	arena: claydo.Arena = claydo.createArenaWithCapacity(totalMemorySize)
 	claydo.initialize(
 		arena,
 		{cast(f32)rl.GetScreenWidth(), cast(f32)rl.GetScreenHeight()},
-		{err_proc = HandleClayErrors},
+		{errProc = HandleClayErrors},
 	)
-	claydo.set_measure_text_procedure(rr.measure_text, nil)
-	rr.raylib_initialize(
+	claydo.setMeasureTextProcedure(rr.measureText, nil)
+	rr.raylibInitialize(
 		1024,
 		768,
 		"Clay - Raylib Renderer Example",
@@ -485,19 +416,19 @@ main :: proc() {
 	profilePicture := rl.LoadTexture("resources/profile-picture.png")
 
 	fonts: [2]rl.Font
-	rr.load_font(FONT_ID_BODY_24, 48, "resources/Roboto-Regular.ttf")
-	rr.load_font(FONT_ID_BODY_16, 32, "resources/Roboto-Regular.ttf")
-	claydo.set_measure_text_procedure(rr.measure_text, &fonts)
+	rr.loadFont(FONT_ID_BODY_24, 48, "resources/Roboto-Regular.ttf")
+	rr.loadFont(FONT_ID_BODY_16, 32, "resources/Roboto-Regular.ttf")
+	claydo.setMeasureTextProcedure(rr.measureText, &fonts)
 	charData = make([]u8, 100 * 3)
 	for i := 0; i < cellCount; i += 1 {
 		fi := f32(i)
 		buf := make([]u8, 3)
-		r_int := rand.int_range(0, 999)
-		str_id := strconv.write_int(buf[:], i64(i), 10)
+		rInt := rand.int_range(0, 999)
+		strId := strconv.write_int(buf[:], i64(i), 10)
 		colors[i] = {
 			id       = i,
 			color    = ({255 - fi, 255 - fi * 4, 255 - fi * 2, 255} / 255),
-			stringId = str_id,
+			stringId = strId,
 		}
 	}
 
@@ -507,13 +438,13 @@ main :: proc() {
 	for !rl.WindowShouldClose() // Detect window close button or ESC key
 	{
 		if (reinitializeClay) {
-			claydo.set_max_element_count(8192)
-			totalMemorySize = claydo.min_memory_size()
-			arena = claydo.create_arena_with_capacity(totalMemorySize)
+			claydo.setMaxElementCount(8192)
+			totalMemorySize = claydo.minMemorySize()
+			arena = claydo.createArenaWithCapacity(totalMemorySize)
 			claydo.initialize(
 				arena,
 				{cast(f32)rl.GetScreenWidth(), cast(f32)rl.GetScreenHeight()},
-				{err_proc = HandleClayErrors},
+				{errProc = HandleClayErrors},
 			)
 			reinitializeClay = false
 		}
