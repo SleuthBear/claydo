@@ -1,14 +1,14 @@
-
-
 package claydo
 
 import "base:intrinsics"
 import "base:runtime"
+import "core:fmt"
 import "core:mem/virtual"
+import "core:strconv"
 
 // NOTE -- TYPES --
 Color :: [4]f32
-Wrap_Mode :: enum {
+WrapMode :: enum {
 	WRAP_WORDS,
 	WRAP_NEWLINES,
 	WRAP_NONE,
@@ -17,26 +17,26 @@ Padding :: struct {
 	left, right, top, bottom: f32,
 }
 Sizing :: struct {
-	width, height: Sizing_Axis,
+	width, height: SizingAxis,
 }
-Sizing_Type :: enum {
+SizingType :: enum {
 	FIT,
 	GROW,
 	PERCENT,
 	FIXED,
 }
-Sizing_Axis :: struct {
-	type:  Sizing_Type,
+SizingAxis :: struct {
+	type:  SizingType,
 	value: union {
 		Percent,
-		Sizing_Min_Max,
+		SizingMinMax,
 	},
 }
 Percent :: distinct f32
-Sizing_Min_Max :: struct {
+SizingMinMax :: struct {
 	min, max: f32,
 }
-Bounding_Box :: struct {
+BoundingBox :: struct {
 	x, y:          f32,
 	width, height: f32,
 }
@@ -45,19 +45,19 @@ Alignment :: enum {
 	RIGHT,
 	CENTER,
 }
-Text_Element_Config :: struct {
-	user_ptr:    rawptr,
-	text_color:  Color,
-	font_id:     u16,
-	font_size:   f32,
-	spacing:     f32,
-	line_height: f32,
-	wrap_mode:   Wrap_Mode,
-	alignment:   Alignment,
+TextElementConfig :: struct {
+	userPtr:    rawptr,
+	textColor:  Color,
+	fontId:     u16,
+	fontSize:   f32,
+	spacing:    f32,
+	lineHeight: f32,
+	wrapMode:   WrapMode,
+	alignment:  Alignment,
 }
-Aspect_Ratio :: distinct f32
-Image_Data :: distinct rawptr
-Attach_Point_Type :: enum {
+AspectRatio :: distinct f32
+ImageData :: distinct rawptr
+AttachPointType :: enum {
 	LEFT_TOP,
 	LEFT_CENTER,
 	LEFT_BOTTOM,
@@ -68,102 +68,103 @@ Attach_Point_Type :: enum {
 	RIGHT_CENTER,
 	RIGHT_BOTTOM,
 }
-Floating_Attach_Points :: struct {
-	element: Attach_Point_Type,
-	parent:  Attach_Point_Type,
+FloatingAttachPoints :: struct {
+	element: AttachPointType,
+	parent:  AttachPointType,
 }
-Pointer_Capture_Mode :: enum {
+PointerCaptureMode :: enum {
 	CAPTURE,
 	PASSTHROUGH,
 }
-Floating_Attach_To_Element :: enum {
+FloatingAttachToElement :: enum {
 	NONE,
 	PARENT,
 	ELEMENT_WITH_ID,
 	ROOT,
 	INLINE,
 }
-Floating_Clip_To_Element :: enum {
+FloatingClipToElement :: enum {
 	NONE,
 	ATTACHED_PARENT,
 }
-Floating_Element_Config :: struct {
-	offset:              [2]f32,
-	expand:              [2]f32,
-	parent_id:           u32,
-	z_idx:               i16,
-	attach_points:       Floating_Attach_Points,
-	cursor_capture_mode: Pointer_Capture_Mode,
-	attach_to:           Floating_Attach_To_Element,
-	clip_to:             Floating_Clip_To_Element,
+FloatingElementConfig :: struct {
+	offset:             [2]f32,
+	expand:             [2]f32,
+	parentId:           u32,
+	zIdx:               i16,
+	attachPoints:       FloatingAttachPoints,
+	pointerCaptureMode: PointerCaptureMode,
+	attachTo:           FloatingAttachToElement,
+	clipTo:             FloatingClipToElement,
 }
-Custom_Element_Config :: distinct rawptr
-Clip_Element_Config :: struct {
-	horizontal:   bool,
-	vertical:     bool,
-	child_offset: [2]f32,
+CustomElementConfig :: distinct rawptr
+ClipElementConfig :: struct {
+	horizontal:  bool,
+	vertical:    bool,
+	childOffset: [2]f32,
 }
-Border_Width :: struct {
+BorderWidth :: struct {
 	left, right, top, bottom: f32,
-	between_children:         f32,
+	betweenChildren:          f32,
 }
-Border_Element_Config :: struct {
+BorderElementConfig :: struct {
 	color: Color,
-	width: Border_Width,
+	width: BorderWidth,
 }
-Corner_Radius :: struct {
-	top_left, top_right, bottom_left, bottom_right: f32,
+CornerRadius :: struct {
+	topLeft, topRight, bottomLeft, bottomRight: f32,
 }
-Text_Render_Data :: struct {
-	text:        string,
-	color:       Color,
-	font_id:     u16,
-	font_size:   f32,
-	spacing:     f32,
-	line_height: f32,
+TextRenderData :: struct {
+	text:       string,
+	color:      Color,
+	fontId:     u16,
+	fontSize:   f32,
+	spacing:    f32,
+	lineHeight: f32,
 }
-Rectangle_Render_Data :: struct {
-	color:         Color,
-	corner_radius: Corner_Radius,
+RectangleRenderData :: struct {
+	color:        Color,
+	cornerRadius: CornerRadius,
 }
-Image_Render_Data :: struct {
-	color:         Color,
-	corner_radius: Corner_Radius,
-	data:          Image_Data,
+ImageRenderData :: struct {
+	color:        Color,
+	cornerRadius: CornerRadius,
+	data:         ImageData,
 }
-Custom_Render_Data :: struct {
-	color:         Color,
-	corner_radius: Corner_Radius,
-	data:          rawptr,
+CustomRenderData :: struct {
+	color:        Color,
+	cornerRadius: CornerRadius,
+	data:         rawptr,
 }
-Clip_Render_Data :: struct {
+ClipRenderData :: struct {
 	horizontal: bool,
 	vertical:   bool,
 }
-Border_Render_Data :: struct {
-	color:         Color,
-	corner_radius: Corner_Radius,
-	width:         Border_Width,
+BorderRenderData :: struct {
+	color:        Color,
+	cornerRadius: CornerRadius,
+	width:        BorderWidth,
+	overlayColor: OverlayColorRenderData,
 }
 // TODO render data should not exist. Render command should be a union of commands we can switch on
-Render_Data :: union {
-	Text_Render_Data,
-	Rectangle_Render_Data,
-	Image_Render_Data,
-	Custom_Render_Data,
-	Border_Render_Data,
-	Clip_Render_Data,
-	Color_Overlay_Render_Data,
+RenderData :: union {
+	TextRenderData,
+	RectangleRenderData,
+	ImageRenderData,
+	CustomRenderData,
+	BorderRenderData,
+	ClipRenderData,
+	OverlayColorRenderData,
 }
-Render_Command :: struct {
-	bounding_box: Bounding_Box,
-	render_data:  Render_Data,
-	user_ptr:     rawptr,
-	id:           u32,
-	z_idx:        i16,
-	type:         Render_Command_Type,
+RenderCommand :: struct {
+	boundingBox: BoundingBox,
+	renderData:  RenderData,
+	userPtr:     rawptr,
+	id:          u32,
+	zIdx:        i16,
+	type:        RenderCommandType,
 }
-Render_Command_Type :: enum {
+RenderCommandType :: enum {
 	NONE,
 	RECTANGLE,
 	BORDER,
@@ -175,67 +176,67 @@ Render_Command_Type :: enum {
 	COLOR_OVERLAY_END,
 	CUSTOM,
 }
-Scroll_Container_Data :: struct {
-	scroll_position:    ^[2]f32,
-	dimensions:         [2]f32,
-	content_dimensions: [2]f32,
-	config:             Clip_Element_Config,
-	found:              bool,
+ScrollContainerData :: struct {
+	scrollPosition:    ^[2]f32,
+	dimensions:        [2]f32,
+	contentDimensions: [2]f32,
+	config:            ClipElementConfig,
+	found:             bool,
 }
-Cursor_Data_Interaction_State :: enum {
+PointerDataInteractionState :: enum {
 	PRESSED_THIS_FRAME,
 	PRESSED,
 	RELEASED_THIS_FRAME,
 	RELEASED,
 }
-Cursor_Data :: struct {
+PointerData :: struct {
 	position: [2]f32,
-	state:    Cursor_Data_Interaction_State,
+	state:    PointerDataInteractionState,
 }
-Layout_Alignment_X :: enum {
+LayoutAlignmentX :: enum {
 	LEFT,
 	RIGHT,
 	CENTER,
 }
-Layout_Alignment_Y :: enum {
+LayoutAlignmentY :: enum {
 	CENTER,
 	TOP,
 	BOTTOM,
 }
-Child_Alignment :: struct {
-	x: Layout_Alignment_X,
-	y: Layout_Alignment_Y,
+ChildAlignment :: struct {
+	x: LayoutAlignmentX,
+	y: LayoutAlignmentY,
 }
-Layout_Direction :: enum {
+LayoutDirection :: enum {
 	LEFT_TO_RIGHT,
 	TOP_TO_BOTTOM,
 }
-Layout_Config :: struct {
-	sizing:          Sizing,
-	padding:         Padding,
-	child_gap:       f32,
-	child_alignment: Child_Alignment,
-	direction:       Layout_Direction,
+LayoutConfig :: struct {
+	sizing:         Sizing,
+	padding:        Padding,
+	childGap:       f32,
+	childAlignment: ChildAlignment,
+	direction:      LayoutDirection,
 }
-Element_Declaration :: struct {
-	layout:        Layout_Config,
-	color:         Color,
-	corner_radius: Corner_Radius,
-	aspect_ratio:  Aspect_Ratio,
-	image:         Image_Data,
-	floating:      Floating_Element_Config,
-	custom:        Custom_Element_Config,
-	clip:          Clip_Element_Config,
-	border:        Border_Element_Config,
-	overlay_color: Color,
-	transition:    Transition_Element_Config,
-	user_ptr:      rawptr,
+ElementDeclaration :: struct {
+	layout:          LayoutConfig,
+	backgroundColor: Color,
+	cornerRadius:    CornerRadius,
+	aspectRatio:     AspectRatio,
+	image:           ImageData,
+	floating:        FloatingElementConfig,
+	custom:          CustomElementConfig,
+	clip:            ClipElementConfig,
+	border:          BorderElementConfig,
+	overlayColor:    Color,
+	transition:      TransitionElementConfig,
+	userPtr:         rawptr,
 }
-Element_Data :: struct {
-	bounding_box: Bounding_Box,
-	found:        bool,
+ElementData :: struct {
+	boundingBox: BoundingBox,
+	found:       bool,
 }
-Error_Type :: enum {
+ErrorType :: enum {
 	TEXT_MEASUREMENT_FUNCTION_NOT_PROVIDED,
 	ARENA_CAPACITY_EXCEEDED,
 	ELEMENTS_CAPACITY_EXCEEDED,
@@ -246,269 +247,313 @@ Error_Type :: enum {
 	INTERNAL_ERROR,
 	UNBALANCED_OPEN_CLOSE,
 }
-Error_Data :: struct {
-	type:     Error_Type,
-	text:     string,
-	user_ptr: rawptr,
+ErrorData :: struct {
+	type:    ErrorType,
+	text:    string,
+	userPtr: rawptr,
 }
 // NOTE - Implementation -
-Boolean_Warnings :: struct {
-	max_elements_exceeded,
-	max_render_commands_exceeded,
-	max_text_measure_cache_exceeded,
-	text_measurement_function_not_set: bool,
+BooleanWarnings :: struct {
+	maxElementsExceeded,
+	maxRenderCommandsExceeded,
+	maxTextMeasureCacheExceeded,
+	textMeasurementFunctionNotSet: bool,
 }
 Warning :: struct {
-	base_message:    string,
-	dynamic_message: string,
+	baseMessage:    string,
+	dynamicMessage: string,
 }
-Transition_Data :: struct {
-	bounding_box:  Bounding_Box,
-	color:         Color,
-	overlay_color: Color,
+TransitionData :: struct {
+	boundingBox:  BoundingBox,
+	color:        Color,
+	overlayColor: Color,
+	borderColor:  Color,
+	borderWidth:  BorderWidth,
 }
-Transition_State :: enum {
+TransitionState :: enum {
 	IDLE,
 	ENTERING,
 	TRANSITIONING,
 	EXITING,
 }
-Transition_Property :: enum u8 {
-	ALL,
-	BOUNDING_BOX,
-	COLOR,
+TransitionProperty :: enum u8 {
+	X,
+	Y,
+	WIDTH,
+	HEIGHT,
+	BACKGROUND_COLOR,
 	OVERLAY_COLOR,
 	CORNER_RADIUS,
-	BORDER,
+	BORDER_COLOR,
+	BORDER_WIDTH,
 }
-Transition_Callback_Arguments :: struct {
-	state:        Transition_State,
-	initial:      Transition_Data,
-	current:      ^Transition_Data,
-	target:       Transition_Data,
-	elapsed_time: f32,
-	duration:     f32,
-	properties:   bit_set[Transition_Property],
+
+TransitionCallbackArguments :: struct {
+	state:       TransitionState,
+	initial:     TransitionData,
+	current:     ^TransitionData,
+	target:      TransitionData,
+	elapsedTime: f32,
+	duration:    f32,
+	properties:  bit_set[TransitionProperty],
 }
-Transition_Element_Config :: struct {
-	handler:        proc(_: Transition_Callback_Arguments) -> bool,
-	duration:       f32,
-	properties:     bit_set[Transition_Property],
-	on_begin_enter: proc(_: Transition_Data) -> Transition_Data,
-	on_begin_exit:  proc(_: Transition_Data) -> Transition_Data,
+
+TransitionEnterTriggerType :: enum {
+	SKIP_ON_FIRST_PARENT_FRAME,
+	TRIGGER_ON_FIRST_PARENT_FRAME,
 }
-Color_Overlay_Render_Data :: distinct Color
-Wrapped_Text_Line :: struct {
+
+TransitionExitTriggerType :: enum {
+	SKIP_WHEN_PARENT_EXITS,
+	TRIGGER_WHEN_PARENT_EXITS,
+}
+
+TransitionInteractionHandlingType :: enum {
+	DISABLE_INTERACTIONS_WHILE_TRANSITIONING_POSITION,
+	ALLOW_INTERACTIONS_WHILE_TRANSITIONING_POSITION,
+}
+
+ExitTransitionSiblingOrdering :: enum {
+	UNDERNEATH_SIBLINGS,
+	NATURAL_ORDER,
+	ABOVE_SIBLINGS,
+}
+
+TransitionElementConfig :: struct {
+	handler:             proc(_: TransitionCallbackArguments) -> bool,
+	duration:            f32,
+	properties:          bit_set[TransitionProperty],
+	interactionHandling: TransitionInteractionHandlingType,
+	enter:               struct {
+		setInitialState: proc(
+			targetState: TransitionData,
+			properties: bit_set[TransitionProperty],
+		) -> TransitionData,
+		trigger:         TransitionEnterTriggerType,
+	},
+	exit:                struct {
+		setFinalState:   proc(
+			initialState: TransitionData,
+			properties: bit_set[TransitionProperty],
+		) -> TransitionData,
+		trigger:         TransitionExitTriggerType,
+		siblingOrdering: ExitTransitionSiblingOrdering,
+	},
+}
+OverlayColorRenderData :: distinct Color
+WrappedTextLine :: struct {
 	dimensions: [2]f32,
 	text:       string,
 }
-Text_Element_Data :: struct {
-	text:                 string,
-	preferred_dimensions: [2]f32,
-	idx:                  int,
-	wrapped_lines:        Array(Wrapped_Text_Line),
+TextElementData :: struct {
+	text:                string,
+	preferredDimensions: [2]f32,
+	wrappedLines:        Array(WrappedTextLine),
 }
-Text_Declaration :: struct {
-	config: Text_Element_Config,
-	data:   Text_Element_Data,
+TextDeclaration :: struct {
+	config: TextElementConfig,
+	data:   TextElementData,
 }
-Layout_Element :: struct {
-	children:                Array(int),
-	dimensions:              [2]f32,
-	min_dimensions:          [2]f32,
-	id:                      u32,
-	floating_children_count: u16,
-	config:                  union {
-		Element_Declaration,
-		Text_Declaration,
+LayoutElement :: struct {
+	children:              Array(int),
+	dimensions:            [2]f32,
+	minDimensions:         [2]f32,
+	id:                    u32,
+	floatingChildrenCount: u16,
+	config:                union {
+		ElementDeclaration,
+		TextDeclaration,
 	},
+	exiting:               bool,
 }
-Transition_Data_Internal :: struct {
-	initial_state:      Transition_Data,
-	current_state:      Transition_Data,
-	target_state:       Transition_Data,
-	element_this_frame: ^Layout_Element,
-	element_id:         u32,
-	parent_id:          u32,
-	sibling_idx:        u32,
-	elapsed_time:       f32,
-	state:              Transition_State,
+TransitionDataInternal :: struct {
+	initialState:              TransitionData,
+	currentState:              TransitionData,
+	targetState:               TransitionData,
+	elementThisFrame:          ^LayoutElement,
+	elementId:                 u32,
+	parentId:                  u32,
+	oldParentRelativePosition: [2]f32,
+	siblingIdx:                u32,
+	elapsedTime:               f32,
+	state:                     TransitionState,
+	transitionOut:             bool,
+	reparented:                bool,
+	activeProperties:          bit_set[TransitionProperty],
 }
-Scroll_Container_Data_Internal :: struct {
-	layout_element:       ^Layout_Element,
-	bounding_box:         Bounding_Box,
-	content_size:         [2]f32,
-	scroll_origin:        [2]f32,
-	cursor_origin:        [2]f32,
-	scroll_momentum:      [2]f32,
-	scroll_position:      [2]f32,
-	previous_delta:       [2]f32,
-	momentum_time:        f32,
-	element_id:           u32,
-	open_this_frame:      bool,
-	cursor_scroll_active: bool,
+ScrollContainerDataInternal :: struct {
+	layoutElement:       ^LayoutElement,
+	boundingBox:         BoundingBox,
+	contentSize:         [2]f32,
+	scrollOrigin:        [2]f32,
+	pointerOrigin:       [2]f32,
+	scrollMomentum:      [2]f32,
+	scrollPosition:      [2]f32,
+	previousDelta:       [2]f32,
+	momentumTime:        f32,
+	elementId:           u32,
+	openThisFrame:       bool,
+	pointerScrollActive: bool,
 }
-Debug_Element_Data :: struct {
+DebugElementData :: struct {
 	collision: bool,
 	collapsed: bool,
 }
-Element_ID :: struct {
-	id, offset, base_id: u32,
-	string_id:           string,
+ElementID :: struct {
+	id, offset, baseId: u32,
+	stringId:           string,
 }
-Layout_Element_Hash_Map_Item :: struct {
-	bounding_box:            Bounding_Box,
-	element_id:              Element_ID,
-	layout_element:          ^Layout_Element,
-	on_hover_function:       proc(_: Element_ID, _: Cursor_Data, _: rawptr),
-	hover_function_user_ptr: rawptr,
-	next_idx:                int,
-	generation:              u32,
-	debug_data:              ^Debug_Element_Data,
+LayoutElementHashMapItem :: struct {
+	boundingBox:          BoundingBox,
+	elementId:            ElementID,
+	layoutElement:        ^LayoutElement,
+	onHoverFunction:      proc(_: ElementID, _: PointerData, _: rawptr),
+	hoverFunctionUserPtr: rawptr,
+	nextIdx:              int,
+	generation:           u32,
+	debugData:            ^DebugElementData,
+	appearedThisFrame:    bool,
 }
-Measured_Word :: struct {
-	start_offset, length, next: int,
-	width:                      f32,
+MeasuredWord :: struct {
+	startOffset, length, next: int,
+	width:                     f32,
 }
-Measure_Text_Cache_Item :: struct {
-	unwrapped_dimension:      [2]f32,
-	measured_words_start_idx: int,
-	min_width:                f32,
-	id:                       u32,
-	next_idx:                 int,
-	generation:               u32,
-	contains_new_lines:       bool,
+MeasureTextCacheItem :: struct {
+	unwrappedDimension:    [2]f32,
+	measuredWordsStartIdx: int,
+	minWidth:              f32,
+	id:                    u32,
+	nextIdx:               int,
+	generation:            u32,
+	containsNewLines:      bool,
 }
-Layout_Element_Tree_Node :: struct {
-	layout_element:    ^Layout_Element,
-	position:          [2]f32,
-	next_child_offset: [2]f32,
+LayoutElementTreeNode :: struct {
+	layoutElement:   ^LayoutElement,
+	position:        [2]f32,
+	nextChildOffset: [2]f32,
 }
-Layout_Element_Tree_Root :: struct {
-	layout_element_idx: int,
-	parent_id:          u32,
-	clip_element_id:    u32,
-	z_idx:              i16,
-	cursor_offset:      [2]f32,
+LayoutElementTreeRoot :: struct {
+	layoutElementIdx: int,
+	parentId:         u32,
+	clipElementId:    u32,
+	zIdx:             i16,
+	pointerOffset:    [2]f32,
 }
-Transition_Elements_Added_Count :: struct {
-	elements_added:         int,
-	element_children_added: int,
+TransitionElementsAddedCount :: struct {
+	elementsAdded:        int,
+	elementChildrenAdded: int,
 }
 Array :: struct($T: typeid) {
 	items: []T,
 	len:   int,
 	cap:   int,
 }
-Debug_Element_Config_Type_Label_Config :: struct {
+DebugElementConfigTypeLabelConfig :: struct {
 	label: string,
 	color: Color,
 }
-Render_Debug_Layout_Data :: struct {
-	row_count:                int,
-	selected_element_row_idx: int,
+RenderDebugLayoutData :: struct {
+	rowCount:              int,
+	selectedElementRowIdx: int,
 }
-Error_Handler :: struct {
-	err_proc: proc(_: Error_Data),
-	user_ptr: rawptr,
+ErrorHandler :: struct {
+	errProc: proc(_: ErrorData),
+	userPtr: rawptr,
 }
 Arena :: virtual.Arena
 // I assume one state at a time. This is probably wrong, but should be easy enough to fix later
 State :: struct {
-	measure_text:                             proc(
-		_: string,
-		_: Text_Element_Config,
-		_: rawptr,
-	) -> [2]f32,
-	query_scroll_offset:                      proc(element_id: u32, user_ptr: rawptr) -> [2]f32,
-	exiting_elements_length:                  int,
-	exiting_elements_children_length:         int,
-	max_element_count:                        int,
-	max_measure_text_cache_word_count:        int,
-	warnings_enabled:                         bool,
-	error_handler:                            Error_Handler,
-	boolean_warnings:                         Boolean_Warnings,
-	warnings:                                 Array(Warning),
-	cursor_info:                              Cursor_Data,
-	layout_dimensions:                        [2]f32,
-	dynamic_element_idx_base_hash:            Element_ID,
-	dynamic_element_idx:                      u32,
-	debug_mode_enabled:                       bool,
-	disable_culling:                          bool,
-	external_scroll_handling_enabled:         bool,
-	debug_selected_element_id:                u32,
-	generation:                               u32,
-	measure_text_user_ptr:                    rawptr,
-	query_scroll_offset_user_ptr:             rawptr,
-	arena_internal:                           Arena,
-	arena:                                    runtime.Allocator,
-	arena_reset_point:                        uint,
-	layout_elements:                          Array(Layout_Element),
-	render_commands:                          Array(Render_Command),
-	open_layout_element_stack:                Array(int),
-	layout_element_children:                  Array(int),
-	layout_element_children_buffer:           Array(int),
-	reusable_element_idx_buffer:              Array(int),
-	layout_element_clip_element_ids:          Array(int),
-	layout_element_id_strings:                Array(string),
-	wrapped_text_lines:                       Array(Wrapped_Text_Line),
-	layout_element_tree_nodes:                Array(Layout_Element_Tree_Node),
-	layout_element_tree_roots:                Array(Layout_Element_Tree_Root),
-	layout_elements_hash_map_internal:        Array(Layout_Element_Hash_Map_Item),
-	layout_elements_hash_map:                 Array(int),
-	measure_text_hash_map_internal:           Array(Measure_Text_Cache_Item),
-	measure_text_hash_map_internal_free_list: Array(int),
-	measure_text_hash_map:                    Array(int),
-	measured_words:                           Array(Measured_Word),
-	measured_words_free_list:                 Array(int),
-	open_clip_element_stack:                  Array(int),
-	cursor_over_ids:                          Array(Element_ID),
-	scroll_container_datas:                   Array(Scroll_Container_Data_Internal),
-	transition_datas:                         Array(Transition_Data_Internal),
-	tree_node_visited:                        Array(bool),
-	dynamic_string_data:                      Array(byte),
-	debug_element_data:                       Array(Debug_Element_Data),
+	measureText:                        proc(_: string, _: TextElementConfig, _: rawptr) -> [2]f32,
+	queryScrollOffset:                  proc(elementId: u32, userPtr: rawptr) -> [2]f32,
+	exitingElementsLength:              int,
+	exitingElementsChildrenLength:      int,
+	maxElementCount:                    int,
+	maxMeasureTextCacheWordCount:       int,
+	warningsEnabled:                    bool,
+	errorHandler:                       ErrorHandler,
+	booleanWarnings:                    BooleanWarnings,
+	warnings:                           Array(Warning),
+	pointerInfo:                        PointerData,
+	layoutDimensions:                   [2]f32,
+	dynamicElementIdxBaseHash:          ElementID,
+	dynamicElementIdx:                  u32,
+	debugModeEnabled:                   bool,
+	disableCulling:                     bool,
+	externalScrollHandlingEnabled:      bool,
+	debugSelectedElementId:             u32,
+	generation:                         u32,
+	measureTextUserPtr:                 rawptr,
+	queryScrollOffsetUserPtr:           rawptr,
+	arenaInternal:                      Arena,
+	arena:                              runtime.Allocator,
+	arenaResetPoint:                    uint,
+	layoutElements:                     Array(LayoutElement),
+	renderCommands:                     Array(RenderCommand),
+	openLayoutElementStack:             Array(int),
+	layoutElementChildren:              Array(int),
+	layoutElementChildrenBuffer:        Array(int),
+	reusableElementIdxBuffer:           Array(int),
+	layoutElementClipElementIds:        Array(int),
+	layoutElementIdStrings:             Array(string),
+	wrappedTextLines:                   Array(WrappedTextLine),
+	layoutElementTreeNodes:             Array(LayoutElementTreeNode),
+	layoutElementTreeRoots:             Array(LayoutElementTreeRoot),
+	layoutElementsHashMapInternal:      Array(LayoutElementHashMapItem),
+	layoutElementsHashMap:              Array(int),
+	measureTextHashMapInternal:         Array(MeasureTextCacheItem),
+	measureTextHashMapInternalFreeList: Array(int),
+	measureTextHashMap:                 Array(int),
+	measuredWords:                      Array(MeasuredWord),
+	measuredWordsFreeList:              Array(int),
+	openClipElementStack:               Array(int),
+	pointerOverIds:                     Array(ElementID),
+	scrollContainerDatas:               Array(ScrollContainerDataInternal),
+	transitionDatas:                    Array(TransitionDataInternal),
+	treeNodeVisited:                    Array(bool),
+	dynamicStringData:                  Array(byte),
+	debugElementData:                   Array(DebugElementData),
+	rootResizedLastFrame:               bool,
 }
 DEFAULT_MAX_ELEMENT_COUNT :: 8192
 DEFAULT_MAX_MEASURE_TEXT_WORD_CACHE_COUNT :: 16384
 MAX_FLOAT: f32 : 999999999999999 // TODO
 EPSILON: f32 : 0.01
 
-DEFAULT_LAYOUT_CONFIG: Layout_Config = {}
-DEFAULT_TEXT_ELEMENT_CONFIG: Text_Element_Config = {}
-DEFAULT_ASPECT_RATIO_ELEMENT_CONFIG: Aspect_Ratio = {}
-DEFAULT_IMAGE_ELEMENT_CONFIG: Image_Data = {}
-DEFAULT_FLOATING_ELEMENT_CONFIG: Floating_Element_Config = {}
-DEFAULT_CUSTOM_ELEMENT_CONFIG: Custom_Element_Config = {}
-DEFAULT_CLIP_ELEMENT_CONFIG: Clip_Element_Config = {}
-DEFAULT_BORDER_ELEMENT_CONFIG: Border_Element_Config = {}
-DEFAULT_LAYOUT_ELEMENT: Layout_Element = {}
-DEFAULT_MEASURE_TEXT_CACHE_ITEM: Measure_Text_Cache_Item = {}
-DEFAULT_LAYOUT_ELEMENT_HASH_MAP_ITEM: Layout_Element_Hash_Map_Item = {}
-DEFAULT_CORNER_RADIUS: Corner_Radius = {}
+DEFAULT_LAYOUT_CONFIG: LayoutConfig = {}
+DEFAULT_TEXT_ELEMENT_CONFIG: TextElementConfig = {}
+DEFAULT_ASPECT_RATIO_ELEMENT_CONFIG: AspectRatio = {}
+DEFAULT_IMAGE_ELEMENT_CONFIG: ImageData = {}
+DEFAULT_FLOATING_ELEMENT_CONFIG: FloatingElementConfig = {}
+DEFAULT_CUSTOM_ELEMENT_CONFIG: CustomElementConfig = {}
+DEFAULT_CLIP_ELEMENT_CONFIG: ClipElementConfig = {}
+DEFAULT_BORDER_ELEMENT_CONFIG: BorderElementConfig = {}
+DEFAULT_LAYOUT_ELEMENT: LayoutElement = {}
+DEFAULT_MEASURE_TEXT_CACHE_ITEM: MeasureTextCacheItem = {}
+DEFAULT_LAYOUT_ELEMENT_HASH_MAP_ITEM: LayoutElementHashMapItem = {}
+DEFAULT_CORNER_RADIUS: CornerRadius = {}
 
 
 /* This proc is some bullshit. It is also slower than hardcoding the arrays.*/
 @(private = "file")
-default_ptr :: proc(t: typeid) -> rawptr {
+defaultPtr :: proc(t: typeid) -> rawptr {
 	switch t {
-	case Layout_Config:
+	case LayoutConfig:
 		return rawptr(&DEFAULT_LAYOUT_CONFIG)
-	case Text_Element_Config:
+	case TextElementConfig:
 		return rawptr(&DEFAULT_TEXT_ELEMENT_CONFIG)
-	case Aspect_Ratio:
+	case AspectRatio:
 		return rawptr(&DEFAULT_ASPECT_RATIO_ELEMENT_CONFIG)
-	case Image_Data:
+	case ImageData:
 		return rawptr(&DEFAULT_IMAGE_ELEMENT_CONFIG)
-	case Floating_Element_Config:
+	case FloatingElementConfig:
 		return rawptr(&DEFAULT_FLOATING_ELEMENT_CONFIG)
-	case Custom_Element_Config:
+	case CustomElementConfig:
 		return rawptr(&DEFAULT_CUSTOM_ELEMENT_CONFIG)
-	case Clip_Element_Config:
+	case ClipElementConfig:
 		return rawptr(&DEFAULT_CLIP_ELEMENT_CONFIG)
-	case Border_Element_Config:
+	case BorderElementConfig:
 		return rawptr(&DEFAULT_BORDER_ELEMENT_CONFIG)
-	case Layout_Element:
+	case LayoutElement:
 		return rawptr(&DEFAULT_LAYOUT_ELEMENT)
 	}
 	return nil
@@ -519,15 +564,15 @@ s: ^State
 
 // TODO arena stuff. I assume I can offload this to virtual.Arena, but eventually will need to do it myself.
 @(private = "file")
-array_create :: proc($T: typeid, n: int, allo: runtime.Allocator) -> Array(T) {
+arrayCreate :: proc($T: typeid, n: int, allo: runtime.Allocator) -> Array(T) {
 	items, err := make([]T, n, allo)
 
 	if err != nil {
-		s.error_handler.err_proc(
-			Error_Data {
+		s.errorHandler.errProc(
+			ErrorData {
 				type = .ARENA_CAPACITY_EXCEEDED,
 				text = "Claydo attempted to allocate memory in its arena, but ran out of capacity. Try increasing the capacity of the arena passed to initialize()",
-				user_ptr = s.error_handler.user_ptr,
+				userPtr = s.errorHandler.userPtr,
 			},
 		)
 		return {}
@@ -536,22 +581,22 @@ array_create :: proc($T: typeid, n: int, allo: runtime.Allocator) -> Array(T) {
 }
 
 @(private = "file")
-array_slice :: #force_inline proc(array: ^Array($T), offset, len: int) -> Array(T) {
+arraySlice :: #force_inline proc(array: ^Array($T), offset, len: int) -> Array(T) {
 	if len + offset > array.cap {
 		return {}
 	}
-	sliced_array := Array(T) {
+	slicedArray := Array(T) {
 		items = array.items[offset:],
 		len   = len,
 		cap   = array.cap - offset,
 	}
-	return sliced_array
+	return slicedArray
 }
 
 @(private = "file")
-array_push :: #force_inline proc(array: ^Array($T), value: T) -> ^T {
+arrayPush :: #force_inline proc(array: ^Array($T), value: T) -> ^T {
 	if array.len >= array.cap {
-		return (^T)(default_ptr(T))
+		return (^T)(defaultPtr(T))
 	}
 	array.items[array.len] = value
 	array.len += 1
@@ -559,16 +604,16 @@ array_push :: #force_inline proc(array: ^Array($T), value: T) -> ^T {
 }
 
 @(private = "file")
-array_set :: #force_inline proc(array: ^Array($T), idx: int, value: T) -> ^T {
+arraySet :: #force_inline proc(array: ^Array($T), idx: int, value: T) -> ^T {
 	if idx >= array.len {
-		return (^T)(default_ptr(T))
+		return (^T)(defaultPtr(T))
 	}
 	array.items[idx] = value
 	return &array.items[idx]
 }
 
 @(private = "file")
-array_get :: #force_inline proc(array: Array($T), idx: int) -> T {
+arrayGet :: #force_inline proc(array: Array($T), idx: int) -> T {
 	if idx >= array.len {
 		return T{}
 	}
@@ -576,15 +621,15 @@ array_get :: #force_inline proc(array: Array($T), idx: int) -> T {
 }
 
 @(private = "file")
-array_get_ptr :: #force_inline proc(array: ^Array($T), idx: int) -> ^T {
+arrayGetPtr :: #force_inline proc(array: ^Array($T), idx: int) -> ^T {
 	if idx >= array.len {
-		return (^T)(default_ptr(T))
+		return (^T)(defaultPtr(T))
 	}
 	return &array.items[idx]
 }
 
 @(private = "file")
-array_peek :: #force_inline proc(array: Array($T)) -> T {
+arrayPeek :: #force_inline proc(array: Array($T)) -> T {
 	if array.len <= 0 {
 		return T{}
 	}
@@ -592,7 +637,7 @@ array_peek :: #force_inline proc(array: Array($T)) -> T {
 }
 
 @(private = "file")
-array_pop :: #force_inline proc(array: ^Array($T)) -> T {
+arrayPop :: #force_inline proc(array: ^Array($T)) -> T {
 	if array.len <= 0 {
 		return T{}
 	}
@@ -601,7 +646,7 @@ array_pop :: #force_inline proc(array: ^Array($T)) -> T {
 }
 
 @(private = "file")
-array_swapback :: #force_inline proc(array: ^Array($T), idx: int) {
+arraySwapback :: #force_inline proc(array: ^Array($T), idx: int) {
 	if idx >= array.len {
 		return
 	}
@@ -610,51 +655,60 @@ array_swapback :: #force_inline proc(array: ^Array($T), idx: int) {
 }
 
 @(private = "file")
-array_iter :: #force_inline proc(array: Array($T)) -> []T {
+arrayIter :: #force_inline proc(array: Array($T)) -> []T {
 	return array.items[:array.len]
 }
 
 @(private = "file")
-write_string_to_char_buffer :: proc(text: string) -> string {
-	offset := s.dynamic_string_data.len + 1
-	data := ([]byte)(s.dynamic_string_data.items[:])
+floatEquals :: proc(a, b: f32) -> bool {
+	return abs(a - b) < EPSILON
+}
+
+@(private = "file")
+writeStringToCharBuffer :: proc(text: string) -> string {
+	offset := s.dynamicStringData.len + 1
+	data := ([]byte)(s.dynamicStringData.items[:])
 	data = data[offset:]
 	intrinsics.mem_copy(&data, raw_data(text), len(text))
-	s.dynamic_string_data.len += len(text)
-	return string(s.dynamic_string_data.items[offset:])
+	s.dynamicStringData.len += len(text)
+	return string(s.dynamicStringData.items[offset:])
 }
 
 @(private = "file")
-get_open_layout_element :: proc() -> ^Layout_Element {
-	return array_get_ptr(
-		&s.layout_elements,
-		array_get(s.open_layout_element_stack, s.open_layout_element_stack.len - 1),
+getOpenLayoutElement :: proc() -> ^LayoutElement {
+	return arrayGetPtr(
+		&s.layoutElements,
+		arrayGet(s.openLayoutElementStack, s.openLayoutElementStack.len - 1),
 	)
 }
 
+getOpenElementId :: proc() -> u32 {
+	return getOpenLayoutElement().id
+
+}
 @(private = "file")
-get_parent_element :: proc() -> ^Layout_Element {
-	stack := s.open_layout_element_stack
-	return array_get_ptr(&s.layout_elements, array_get(stack, stack.len - 2))
+getParentElement :: proc() -> ^LayoutElement {
+	stack := s.openLayoutElementStack
+	return arrayGetPtr(&s.layoutElements, arrayGet(stack, stack.len - 2))
 }
 
 @(private = "file")
-get_parent_element_id :: proc() -> u32 {
-	return get_parent_element().id
+getParentElementId :: proc() -> u32 {
+	return getParentElement().id
 }
 
 @(private = "file")
-border_has_any_width :: proc(border_config: ^Border_Element_Config) -> bool {
+borderHasAnyWidth :: proc(borderConfig: ^BorderElementConfig) -> bool {
 	return(
-		border_config.width.between_children > 0 ||
-		border_config.width.left > 0 ||
-		border_config.width.right > 0 ||
-		border_config.width.top > 0 ||
-		border_config.width.bottom > 0 \
+		borderConfig.width.betweenChildren > 0 ||
+		borderConfig.width.left > 0 ||
+		borderConfig.width.right > 0 ||
+		borderConfig.width.top > 0 ||
+		borderConfig.width.bottom > 0 \
 	)
 }
 
-hash_number :: proc(offset: u32, seed: u32) -> Element_ID {
+hashNumber :: proc(offset: u32, seed: u32) -> ElementID {
 	hash := seed
 	hash += (offset + 48)
 	hash += (hash << 10)
@@ -663,10 +717,10 @@ hash_number :: proc(offset: u32, seed: u32) -> Element_ID {
 	hash += (hash << 3)
 	hash ~= (hash >> 11)
 	hash += (hash << 15)
-	return Element_ID{id = hash + 1, offset = offset, base_id = seed, string_id = ""}
+	return ElementID{id = hash + 1, offset = offset, baseId = seed, stringId = ""}
 }
 
-hash_string :: proc(key: string, seed: u32) -> Element_ID {
+hashString :: proc(key: string, seed: u32) -> ElementID {
 	hash := seed
 	for ru in key {
 		hash += u32(ru)
@@ -677,11 +731,11 @@ hash_string :: proc(key: string, seed: u32) -> Element_ID {
 	hash += (hash << 3)
 	hash ~= (hash >> 11)
 	hash += (hash << 15)
-	return Element_ID{id = hash + 1, offset = 0, base_id = hash + 1, string_id = key}
+	return ElementID{id = hash + 1, offset = 0, baseId = hash + 1, stringId = key}
 }
 
 @(private = "file")
-hash_string_with_offset :: proc(key: string, offset, seed: u32) -> Element_ID {
+hashStringWithOffset :: proc(key: string, offset, seed: u32) -> ElementID {
 	base := seed
 	for ru in key {
 		base += u32(ru)
@@ -699,12 +753,12 @@ hash_string_with_offset :: proc(key: string, offset, seed: u32) -> Element_ID {
 	base ~= (base >> 11)
 	hash += (hash << 15)
 	base += (base << 15)
-	return Element_ID{id = hash + 1, offset = offset, base_id = base + 1, string_id = key}
+	return ElementID{id = hash + 1, offset = offset, baseId = base + 1, stringId = key}
 }
 
 // TODO figure out how to do SIMD
 @(private = "file")
-hash_data :: proc(data: []byte) -> u64 {
+hashData :: proc(data: []byte) -> u64 {
 	hash: u64 = 0
 	for b in data {
 		hash += u64(b)
@@ -715,7 +769,7 @@ hash_data :: proc(data: []byte) -> u64 {
 }
 
 @(private = "file")
-hash_data_string :: proc(data: string) -> u32 {
+hashDataString :: proc(data: string) -> u32 {
 	hash: u32 = 0
 	for ru in data {
 		hash += u32(ru)
@@ -726,14 +780,14 @@ hash_data_string :: proc(data: string) -> u32 {
 }
 
 @(private = "file")
-hash_string_content_with_config :: proc(text: string, config: Text_Element_Config) -> u32 {
+hashStringContentWithConfig :: proc(text: string, config: TextElementConfig) -> u32 {
 	// HACK not checking if statically allocated
-	hash := hash_data_string(text)
-	hash += u32(config.font_id)
+	hash := hashDataString(text)
+	hash += u32(config.fontId)
 	hash += (hash << 10)
 	hash ~= (hash >> 6)
 
-	hash += transmute(u32)(config.font_size)
+	hash += transmute(u32)(config.fontSize)
 	hash += (hash << 10)
 	hash ~= (hash >> 6)
 
@@ -748,126 +802,120 @@ hash_string_content_with_config :: proc(text: string, config: Text_Element_Confi
 }
 
 @(private = "file")
-add_measured_word :: proc(word: Measured_Word, previous_word: ^Measured_Word) -> ^Measured_Word {
-	if s.measured_words_free_list.len > 0 {
-		new_item_idx := array_get(s.measured_words_free_list, s.measured_words_free_list.len - 1)
-		s.measured_words_free_list.len -= 1
-		array_set(&s.measured_words, new_item_idx, word)
-		previous_word.next = new_item_idx
-		return array_get_ptr(&s.measured_words, new_item_idx)
+addMeasuredWord :: proc(word: MeasuredWord, previousWord: ^MeasuredWord) -> ^MeasuredWord {
+	if s.measuredWordsFreeList.len > 0 {
+		newItemIdx := arrayGet(s.measuredWordsFreeList, s.measuredWordsFreeList.len - 1)
+		s.measuredWordsFreeList.len -= 1
+		arraySet(&s.measuredWords, newItemIdx, word)
+		previousWord.next = newItemIdx
+		return arrayGetPtr(&s.measuredWords, newItemIdx)
 	}
-	previous_word.next = s.measured_words.len
-	return array_push(&s.measured_words, word)
+	previousWord.next = s.measuredWords.len
+	return arrayPush(&s.measuredWords, word)
 }
 
 // NOTE - Beware this procedure. Text is evil. (170 lines)
 @(private = "file")
-measure_text_cached :: proc(
-	text: string,
-	config: Text_Element_Config,
-) -> ^Measure_Text_Cache_Item {
+measureTextCached :: proc(text: string, config: TextElementConfig) -> ^MeasureTextCacheItem {
 	// Before setting a new item, try and clean up some of the cache
-	id := hash_string_content_with_config(text, config)
-	hash_bucket := id % u32(s.max_measure_text_cache_word_count / 32)
-	element_idx_previous := 0
+	id := hashStringContentWithConfig(text, config)
+	hashBucket := id % u32(s.maxMeasureTextCacheWordCount / 32)
+	elementIdxPrevious := 0
 	// get an index at random?
-	element_idx := s.measure_text_hash_map.items[hash_bucket]
-	for element_idx != 0 { 	// if it's a valid element
+	elementIdx := s.measureTextHashMap.items[hashBucket]
+	for elementIdx != 0 { 	// if it's a valid element
 		// get the actual entry for the item
-		hash_entry := array_get_ptr(&s.measure_text_hash_map_internal, element_idx)
-		if hash_entry.id == id { 	// if the id matches our new string (same contents and config)
+		hashEntry := arrayGetPtr(&s.measureTextHashMapInternal, elementIdx)
+		if hashEntry.id == id { 	// if the id matches our new string (same contents and config)
 			// increment the generation so we know how recently it was touched
-			hash_entry.generation = s.generation
+			hashEntry.generation = s.generation
 			// return the measured details
-			return hash_entry
+			return hashEntry
 		}
 		// the hash entry hasn't been seen in a few frames, so delete
-		if s.generation - hash_entry.generation > 2 {
+		if s.generation - hashEntry.generation > 2 {
 			// get the idx to add the next word?
-			next_word_idx := hash_entry.measured_words_start_idx
+			nextWordIdx := hashEntry.measuredWordsStartIdx
 			// While the chain (sentence?) has more words, keep adding them to the free list
-			for next_word_idx != -1 {
-				measured_word := array_get(s.measured_words, next_word_idx)
-				array_push(&s.measured_words_free_list, next_word_idx)
-				next_word_idx = measured_word.next
+			for nextWordIdx != -1 {
+				measuredWord := arrayGet(s.measuredWords, nextWordIdx)
+				arrayPush(&s.measuredWordsFreeList, nextWordIdx)
+				nextWordIdx = measuredWord.next
 			}
-			next_idx := hash_entry.next_idx
-			// mark the element_idx as empty in the internal array
-			array_set(
-				&s.measure_text_hash_map_internal,
-				element_idx,
-				Measure_Text_Cache_Item{measured_words_start_idx = -1},
+			nextIdx := hashEntry.nextIdx
+			// mark the elementIdx as empty in the internal array
+			arraySet(
+				&s.measureTextHashMapInternal,
+				elementIdx,
+				MeasureTextCacheItem{measuredWordsStartIdx = -1},
 			)
 			// mark that location as available on the free list
-			array_push(&s.measure_text_hash_map_internal_free_list, element_idx)
-			if element_idx_previous == 0 { 	// we are on the first loop
-				s.measure_text_hash_map.items[hash_bucket] = next_idx
+			arrayPush(&s.measureTextHashMapInternalFreeList, elementIdx)
+			if elementIdxPrevious == 0 { 	// we are on the first loop
+				s.measureTextHashMap.items[hashBucket] = nextIdx
 			} else {
-				previous_hash_entry := array_get_ptr(
-					&s.measure_text_hash_map_internal,
-					element_idx_previous,
-				)
+				previousHashEntry := arrayGetPtr(&s.measureTextHashMapInternal, elementIdxPrevious)
 				// jump from previous to next (skip this location as it's now empty)
-				previous_hash_entry.next_idx = hash_entry.next_idx
+				previousHashEntry.nextIdx = hashEntry.nextIdx
 			}
-			element_idx = next_idx
+			elementIdx = nextIdx
 		} else {
 			// If we don't need to clear the data, just move on
-			element_idx_previous = element_idx
-			element_idx = hash_entry.next_idx
+			elementIdxPrevious = elementIdx
+			elementIdx = hashEntry.nextIdx
 		}
 	}
 	// Now add the new item
-	new_item_idx := 0
-	new_cache_item := Measure_Text_Cache_Item {
-		measured_words_start_idx = -1,
-		id                       = id,
-		generation               = s.generation,
+	newItemIdx := 0
+	newCacheItem := MeasureTextCacheItem {
+		measuredWordsStartIdx = -1,
+		id                    = id,
+		generation            = s.generation,
 	}
-	measured: ^Measure_Text_Cache_Item = nil
-	if s.measure_text_hash_map_internal_free_list.len > 0 {
-		new_item_idx := array_pop(&s.measure_text_hash_map_internal_free_list)
-		measured = array_set(&s.measure_text_hash_map_internal, new_item_idx, new_cache_item)
+	measured: ^MeasureTextCacheItem = nil
+	if s.measureTextHashMapInternalFreeList.len > 0 {
+		newItemIdx := arrayPop(&s.measureTextHashMapInternalFreeList)
+		measured = arraySet(&s.measureTextHashMapInternal, newItemIdx, newCacheItem)
 	} else {
 		// I wonder why this is cap -1 ...
-		if s.measure_text_hash_map_internal.len == s.measure_text_hash_map_internal.cap - 1 {
-			if !s.boolean_warnings.max_text_measure_cache_exceeded {
-				s.error_handler.err_proc(
-					Error_Data {
+		if s.measureTextHashMapInternal.len == s.measureTextHashMapInternal.cap - 1 {
+			if !s.booleanWarnings.maxTextMeasureCacheExceeded {
+				s.errorHandler.errProc(
+					ErrorData {
 						type = .ELEMENTS_CAPACITY_EXCEEDED,
-						text = "Claydo ran out of capacity while attempting to measure text elements. Try using set_max_element_count() with a higher value.",
-						user_ptr = s.error_handler.user_ptr,
+						text = "Claydo ran out of capacity while attempting to measure text elements. Try using setMaxElementCount() with a higher value.",
+						userPtr = s.errorHandler.userPtr,
 					},
 				)
-				s.boolean_warnings.max_text_measure_cache_exceeded = true
+				s.booleanWarnings.maxTextMeasureCacheExceeded = true
 			}
 			return &DEFAULT_MEASURE_TEXT_CACHE_ITEM
 		}
-		measured = array_push(&s.measure_text_hash_map_internal, new_cache_item)
-		new_item_idx = s.measure_text_hash_map_internal.len - 1
+		measured = arrayPush(&s.measureTextHashMapInternal, newCacheItem)
+		newItemIdx = s.measureTextHashMapInternal.len - 1
 	}
 
 	start := 0
 	end := 0
-	line_width: f32 = 0
-	measured_width: f32 = 0
-	measured_height: f32 = 0
-	space_width: f32 = s.measure_text(" ", config, s.measure_text_user_ptr).x
-	temp_word := Measured_Word {
+	lineWidth: f32 = 0
+	measuredWidth: f32 = 0
+	measuredHeight: f32 = 0
+	spaceWidth: f32 = s.measureText(" ", config, s.measureTextUserPtr).x
+	tempWord := MeasuredWord {
 		next = -1,
 	}
-	previous_word: ^Measured_Word = &temp_word
+	previousWord: ^MeasuredWord = &tempWord
 	for (end < len(text)) {
-		if s.measured_words.len == s.measured_words.cap - 1 {
-			if !s.boolean_warnings.max_text_measure_cache_exceeded {
-				s.error_handler.err_proc(
-					Error_Data {
+		if s.measuredWords.len == s.measuredWords.cap - 1 {
+			if !s.booleanWarnings.maxTextMeasureCacheExceeded {
+				s.errorHandler.errProc(
+					ErrorData {
 						type = .MEASUREMENT_CAPACITY_EXCEEDED,
-						text = "Claydo has run out of space in it's internal text measurement cache. Try using set_max_measure_text_cache_word_count() (default 16384, with 1 unit storing 1 measured word).",
-						user_ptr = s.error_handler.user_ptr,
+						text = "Claydo has run out of space in it's internal text measurement cache. Try using setMaxMeasureTextCacheWordCount() (default 16384, with 1 unit storing 1 measured word).",
+						userPtr = s.errorHandler.userPtr,
 					},
 				)
-				s.boolean_warnings.max_text_measure_cache_exceeded = true
+				s.booleanWarnings.maxTextMeasureCacheExceeded = true
 			}
 			return &DEFAULT_MEASURE_TEXT_CACHE_ITEM
 		}
@@ -876,82 +924,81 @@ measure_text_cached :: proc(
 			length := end - start
 			dimensions := [2]f32{}
 			if length > 0 {
-				dimensions = s.measure_text(
+				dimensions = s.measureText(
 					text[start:start + length],
 					config,
-					s.measure_text_user_ptr,
+					s.measureTextUserPtr,
 				)
 			}
-			measured.min_width = max(dimensions.x, measured.min_width)
-			measured_height = max(dimensions.y, measured_height)
+			measured.minWidth = max(dimensions.x, measured.minWidth)
+			measuredHeight = max(dimensions.y, measuredHeight)
 			if current == ' ' {
-				dimensions.x += space_width
-				line_width += dimensions.x
-				previous_word = add_measured_word(
-					Measured_Word {
-						start_offset = start,
+				dimensions.x += spaceWidth
+				lineWidth += dimensions.x
+				previousWord = addMeasuredWord(
+					MeasuredWord {
+						startOffset = start,
 						length = length + 1,
 						width = dimensions.x,
 						next = -1,
 					},
-					previous_word,
+					previousWord,
 				)
 			} else if current == '\n' {
 				if length > 0 {
-					previous_word = add_measured_word(
-						Measured_Word {
-							start_offset = start,
+					previousWord = addMeasuredWord(
+						MeasuredWord {
+							startOffset = start,
 							length = length,
 							width = dimensions.x,
 							next = -1,
 						},
-						previous_word,
+						previousWord,
 					)
 				}
-				previous_word = add_measured_word(
-					Measured_Word{start_offset = end + 1, length = 0, width = 0, next = -1},
-					previous_word,
+				previousWord = addMeasuredWord(
+					MeasuredWord{startOffset = end + 1, length = 0, width = 0, next = -1},
+					previousWord,
 				)
-				line_width += dimensions.x
-				measured_width += max(line_width, measured_width)
-				measured.contains_new_lines = true
-				line_width = 0
+				lineWidth += dimensions.x
+				measuredWidth += max(lineWidth, measuredWidth)
+				measured.containsNewLines = true
+				lineWidth = 0
 			}
 			start = end + 1
 		}
 		end += 1
 	}
 	if end - start > 0 {
-		dimensions := s.measure_text(text[start:end], config, s.measure_text_user_ptr)
-		add_measured_word(
-			Measured_Word {
-				start_offset = start,
+		dimensions := s.measureText(text[start:end], config, s.measureTextUserPtr)
+		addMeasuredWord(
+			MeasuredWord {
+				startOffset = start,
 				length = end - start,
 				width = dimensions.x,
 				next = -1,
 			},
-			previous_word,
+			previousWord,
 		)
-		line_width += dimensions.x
-		measured_height = max(dimensions.y, measured_height)
-		measured.min_width = max(dimensions.x, measured.min_width)
+		lineWidth += dimensions.x
+		measuredHeight = max(dimensions.y, measuredHeight)
+		measured.minWidth = max(dimensions.x, measured.minWidth)
 	}
-	measured_width = max(line_width, measured_width) - config.spacing
+	measuredWidth = max(lineWidth, measuredWidth) - config.spacing
 
-	measured.measured_words_start_idx = temp_word.next
-	measured.unwrapped_dimension = {measured_width, measured_height}
+	measured.measuredWordsStartIdx = tempWord.next
+	measured.unwrappedDimension = {measuredWidth, measuredHeight}
 
-	if element_idx_previous != 0 {
-		array_get_ptr(&s.measure_text_hash_map_internal, element_idx_previous).next_idx =
-			new_item_idx
+	if elementIdxPrevious != 0 {
+		arrayGetPtr(&s.measureTextHashMapInternal, elementIdxPrevious).nextIdx = newItemIdx
 	} else {
-		s.measure_text_hash_map.items[hash_bucket] = new_item_idx
+		s.measureTextHashMap.items[hashBucket] = newItemIdx
 	}
 	return measured
 }
 
 @(private = "file")
-point_is_inside_rect :: proc(point: [2]f32, rect: Bounding_Box) -> bool {
+pointIsInsideRect :: proc(point: [2]f32, rect: BoundingBox) -> bool {
 	return(
 		point.x >= rect.x &&
 		point.x <= rect.x + rect.width &&
@@ -961,274 +1008,259 @@ point_is_inside_rect :: proc(point: [2]f32, rect: Bounding_Box) -> bool {
 }
 
 @(private = "file")
-add_hash_map_item :: proc(
-	element_id: Element_ID,
-	layout_element: ^Layout_Element,
-) -> ^Layout_Element_Hash_Map_Item {
-	if s.layout_elements_hash_map_internal.len == s.layout_elements_hash_map_internal.cap - 1 {
+addHashMapItem :: proc(
+	elementId: ElementID,
+	layoutElement: ^LayoutElement,
+) -> ^LayoutElementHashMapItem {
+	if s.layoutElementsHashMapInternal.len == s.layoutElementsHashMapInternal.cap - 1 {
 		return nil
 	}
 	// new item
-	item := Layout_Element_Hash_Map_Item {
-		element_id     = element_id,
-		layout_element = layout_element,
-		next_idx       = -1,
-		generation     = s.generation + 1,
+	item := LayoutElementHashMapItem {
+		elementId         = elementId,
+		layoutElement     = layoutElement,
+		nextIdx           = -1,
+		generation        = s.generation + 1,
+		appearedThisFrame = true,
 	}
-	hash_bucket := element_id.id % u32(s.layout_elements_hash_map.cap)
-	hash_item_previous := -1
+	hashBucket := elementId.id % u32(s.layoutElementsHashMap.cap)
+	hashItemPrevious := -1
 	// random layout item?
-	hash_item_idx := s.layout_elements_hash_map.items[hash_bucket]
-	for hash_item_idx != -1 {
-		hash_item := array_get_ptr(&s.layout_elements_hash_map_internal, hash_item_idx)
+	hashItemIdx := s.layoutElementsHashMap.items[hashBucket]
+	for hashItemIdx != -1 {
+		hashItem := arrayGetPtr(&s.layoutElementsHashMapInternal, hashItemIdx)
 		// layout item from the hash map collides with the provided id
-		if hash_item.element_id == element_id {
-			item.next_idx = hash_item.next_idx
-			if hash_item.generation <= s.generation { 	// first collision. Assume same element
-				// Update the hash_item
-				hash_item.element_id = element_id
-				hash_item.generation = s.generation + 1
-				hash_item.layout_element = layout_element
-				hash_item.debug_data.collision = false
-				hash_item.on_hover_function = nil
-				hash_item.hover_function_user_ptr = nil
+		if hashItem.elementId.id == elementId.id {
+			item.nextIdx = hashItem.nextIdx
+			if hashItem.generation <= s.generation { 	// first collision. Assume same element
+				// Update the hashItem
+				hashItem.appearedThisFrame = hashItem.generation < s.generation
+				hashItem.elementId = elementId
+				hashItem.generation = s.generation + 1
+				hashItem.layoutElement = layoutElement
+				hashItem.debugData.collision = false
+				hashItem.onHoverFunction = nil
+				hashItem.hoverFunctionUserPtr = nil
 			} else {
-				s.error_handler.err_proc(
-					Error_Data {
+				s.errorHandler.errProc(
+					ErrorData {
 						type = .DUPLICATE_ID,
 						text = "An element with this ID was already previously declared during this layout.",
-						user_ptr = s.error_handler.user_ptr,
+						userPtr = s.errorHandler.userPtr,
 					},
 				)
-				if s.debug_mode_enabled {
-					hash_item.debug_data.collision = true
+				if s.debugModeEnabled {
+					hashItem.debugData.collision = true
 				}
 			}
-			return hash_item
+			return hashItem
 		}
-		hash_item_previous = hash_item_idx
-		hash_item_idx = hash_item.next_idx
+		hashItemPrevious = hashItemIdx
+		hashItemIdx = hashItem.nextIdx
 	}
-	hash_item := array_push(&s.layout_elements_hash_map_internal, item)
-	hash_item.debug_data = array_push(&s.debug_element_data, Debug_Element_Data{})
-	if hash_item_previous != -1 {
+	hashItem := arrayPush(&s.layoutElementsHashMapInternal, item)
+	hashItem.debugData = arrayPush(&s.debugElementData, DebugElementData{})
+	if hashItemPrevious != -1 {
 		// If we looped through any items, and didn't collide, then make sure the last one points to the new entry
-		array_get_ptr(&s.layout_elements_hash_map_internal, hash_item_previous).next_idx =
-			s.layout_elements_hash_map_internal.len - 1
+		arrayGetPtr(&s.layoutElementsHashMapInternal, hashItemPrevious).nextIdx =
+			s.layoutElementsHashMapInternal.len - 1
 	} else {
 		// If we didn't iterate just set the hash map to point at the inserted location
-		s.layout_elements_hash_map.items[hash_bucket] = s.layout_elements_hash_map_internal.len - 1
+		s.layoutElementsHashMap.items[hashBucket] = s.layoutElementsHashMapInternal.len - 1
 	}
-	return hash_item
+	return hashItem
 }
 
 // Try and retrieve the item from the hash map by it's id (by doing some modulus black magic on a hash value).
 // If it's not there return the default.
 @(private = "file")
-get_hash_map_item :: proc(id: u32) -> ^Layout_Element_Hash_Map_Item {
-	hash_bucket := id % u32(s.layout_elements_hash_map.cap)
-	element_idx := s.layout_elements_hash_map.items[hash_bucket]
-	for element_idx != -1 {
-		hash_item := array_get_ptr(&s.layout_elements_hash_map_internal, element_idx)
-		if hash_item.element_id.id == id {
-			return hash_item
+getHashMapItem :: proc(id: u32) -> ^LayoutElementHashMapItem {
+	hashBucket := id % u32(s.layoutElementsHashMap.cap)
+	elementIdx := s.layoutElementsHashMap.items[hashBucket]
+	for elementIdx != -1 {
+		hashItem := arrayGetPtr(&s.layoutElementsHashMapInternal, elementIdx)
+		if hashItem.elementId.id == id {
+			return hashItem
 		}
-		element_idx = hash_item.next_idx
+		elementIdx = hashItem.nextIdx
 	}
 	return &DEFAULT_LAYOUT_ELEMENT_HASH_MAP_ITEM
 }
 
 @(private = "file")
-generate_id_for_anonymous_element :: proc(open_layout_element: ^Layout_Element) -> Element_ID {
-	parent_idx := s.open_layout_element_stack.len - 2
-	parent_element := array_get_ptr(
-		&s.layout_elements,
-		array_get(s.open_layout_element_stack, parent_idx),
-	)
-	offset := parent_element.children.len + int(parent_element.floating_children_count)
-	element_id := hash_number(u32(offset), parent_element.id)
-	open_layout_element.id = element_id.id
-	add_hash_map_item(element_id, open_layout_element)
-	array_push(&s.layout_element_id_strings, element_id.string_id)
-	return element_id
-}
-
-@(private = "file")
-update_aspect_ratio_box :: proc(layout_element: ^Layout_Element) {
-	if layout_element.config.(Element_Declaration).aspect_ratio > 0 {
-		if layout_element.dimensions.x == 0 && layout_element.dimensions.y != 0 {
-			layout_element.dimensions.x =
-				layout_element.dimensions.y *
-				f32(layout_element.config.(Element_Declaration).aspect_ratio)
-		} else if layout_element.dimensions.x != 0 && layout_element.dimensions.y == 0 {
-			layout_element.dimensions.y =
-				layout_element.dimensions.x *
-				f32(1 / layout_element.config.(Element_Declaration).aspect_ratio)
+updateAspectRatioBox :: proc(layoutElement: ^LayoutElement) {
+	if layoutElement.config.(ElementDeclaration).aspectRatio != 0 {
+		if layoutElement.dimensions.x == 0 && layoutElement.dimensions.y != 0 {
+			layoutElement.dimensions.x =
+				layoutElement.dimensions.y *
+				f32(layoutElement.config.(ElementDeclaration).aspectRatio)
+		} else if layoutElement.dimensions.x != 0 && layoutElement.dimensions.y == 0 {
+			layoutElement.dimensions.y =
+				layoutElement.dimensions.x *
+				f32(1 / layoutElement.config.(ElementDeclaration).aspectRatio)
 		}
 	}
 }
 
-close_element :: proc() {
-	if s.boolean_warnings.max_elements_exceeded {
+closeElement :: proc() {
+	if s.booleanWarnings.maxElementsExceeded && s.openLayoutElementStack.len == 1 {
 		return
 	}
-	open_layout_element := get_open_layout_element()
-	config := &open_layout_element.config.(Element_Declaration)
-	element_has_clip_horizontal := config.clip.horizontal
-	element_has_clip_vertical := config.clip.vertical
-
-	if element_has_clip_horizontal ||
-	   element_has_clip_vertical ||
-	   config.floating.attach_to != .NONE {
-		s.open_clip_element_stack.len -= 1
+	openLayoutElement := getOpenLayoutElement()
+	config := &openLayoutElement.config.(ElementDeclaration)
+	elementHasClipHorizontal := config.clip.horizontal
+	elementHasClipVertical := config.clip.vertical
+	if elementHasClipHorizontal || elementHasClipVertical || config.floating.attachTo != .NONE {
+		s.openClipElementStack.len -= 1
 	}
 
-	left_right_padding := config.layout.padding.left + config.layout.padding.right
-	top_bottom_padding := config.layout.padding.top + config.layout.padding.bottom
+	leftRightPadding := config.layout.padding.left + config.layout.padding.right
+	topBottomPadding := config.layout.padding.top + config.layout.padding.bottom
 
 
 	// Attach children to the current open element
-	open_layout_element.children.items = s.layout_element_children.items[s.layout_element_children.len:]
-	open_layout_element.children.cap =
-		s.layout_element_children.cap - s.layout_element_children.len
+	openLayoutElement.children.items = s.layoutElementChildren.items[s.layoutElementChildren.len:]
+	openLayoutElement.children.cap = s.layoutElementChildren.cap - s.layoutElementChildren.len
 	if config.layout.direction == .LEFT_TO_RIGHT {
-		open_layout_element.dimensions.x = left_right_padding
-		open_layout_element.min_dimensions.x = left_right_padding
-		for i in 0 ..< open_layout_element.children.len {
-			child_idx := array_get(
-				s.layout_element_children_buffer,
-				s.layout_element_children_buffer.len - open_layout_element.children.len + i,
+		openLayoutElement.dimensions.x = leftRightPadding
+		openLayoutElement.minDimensions.x = leftRightPadding
+		for i in 0 ..< openLayoutElement.children.len {
+			childIdx := arrayGet(
+				s.layoutElementChildrenBuffer,
+				s.layoutElementChildrenBuffer.len - openLayoutElement.children.len + i,
 			)
-			child := array_get_ptr(&s.layout_elements, child_idx)
-			open_layout_element.dimensions.x += child.dimensions.x
-			open_layout_element.dimensions.y = max(
-				open_layout_element.dimensions.y,
-				child.dimensions.y + top_bottom_padding,
+			child := arrayGetPtr(&s.layoutElements, childIdx)
+			openLayoutElement.dimensions.x += child.dimensions.x
+			openLayoutElement.dimensions.y = max(
+				openLayoutElement.dimensions.y,
+				child.dimensions.y + topBottomPadding,
 			)
-			if !element_has_clip_horizontal {
-				open_layout_element.min_dimensions.x += child.min_dimensions.x
+			// Minimum size of child elements doesn't matter to clip containers as they can shrink and hide their contents
+			if !elementHasClipHorizontal {
+				openLayoutElement.minDimensions.x += child.minDimensions.x
 			}
-			if !element_has_clip_vertical {
-				open_layout_element.min_dimensions.y = max(
-					open_layout_element.min_dimensions.y,
-					child.min_dimensions.y + top_bottom_padding,
+			if !elementHasClipVertical {
+				openLayoutElement.minDimensions.y = max(
+					openLayoutElement.minDimensions.y,
+					child.minDimensions.y + topBottomPadding,
 				)
 			}
-			array_push(&s.layout_element_children, child_idx)
+			arrayPush(&s.layoutElementChildren, childIdx)
 		}
-		child_gap := f32(max(open_layout_element.children.len - 1, 0)) * config.layout.child_gap
-		open_layout_element.dimensions.x += child_gap
-		if !element_has_clip_horizontal {
-			open_layout_element.min_dimensions.x += child_gap
+		childGap := f32(max(openLayoutElement.children.len - 1, 0)) * config.layout.childGap
+		openLayoutElement.dimensions.x += childGap
+		if !elementHasClipHorizontal {
+			openLayoutElement.minDimensions.x += childGap
 		}
 	} else if config.layout.direction == .TOP_TO_BOTTOM {
-		open_layout_element.dimensions.y = top_bottom_padding
-		open_layout_element.min_dimensions.y = top_bottom_padding
+		openLayoutElement.dimensions.y = topBottomPadding
+		openLayoutElement.minDimensions.y = topBottomPadding
 
-		for i in 0 ..< open_layout_element.children.len {
-			child_idx := array_get(
-				s.layout_element_children_buffer,
-				s.layout_element_children_buffer.len - open_layout_element.children.len + i,
+		for i in 0 ..< openLayoutElement.children.len {
+			childIdx := arrayGet(
+				s.layoutElementChildrenBuffer,
+				s.layoutElementChildrenBuffer.len - openLayoutElement.children.len + i,
 			)
-			child := array_get_ptr(&s.layout_elements, child_idx)
-			open_layout_element.dimensions.y += child.dimensions.y
-			open_layout_element.dimensions.x = max(
-				open_layout_element.dimensions.x,
-				child.dimensions.x + left_right_padding,
+			child := arrayGetPtr(&s.layoutElements, childIdx)
+			openLayoutElement.dimensions.y += child.dimensions.y
+			openLayoutElement.dimensions.x = max(
+				openLayoutElement.dimensions.x,
+				child.dimensions.x + leftRightPadding,
 			)
-			if !element_has_clip_vertical {
-				open_layout_element.min_dimensions.y += child.min_dimensions.y
+			if !elementHasClipVertical {
+				openLayoutElement.minDimensions.y += child.minDimensions.y
 			}
-			if !element_has_clip_horizontal {
-				open_layout_element.min_dimensions.x = max(
-					open_layout_element.min_dimensions.x,
-					child.min_dimensions.x + left_right_padding,
+			if !elementHasClipHorizontal {
+				openLayoutElement.minDimensions.x = max(
+					openLayoutElement.minDimensions.x,
+					child.minDimensions.x + leftRightPadding,
 				)
 			}
-			array_push(&s.layout_element_children, child_idx)
+			arrayPush(&s.layoutElementChildren, childIdx)
 		}
-		child_gap := f32(max(open_layout_element.children.len - 1, 0)) * config.layout.child_gap
-		open_layout_element.dimensions.y += child_gap
-		if !element_has_clip_vertical {
-			open_layout_element.min_dimensions.y += child_gap
+		childGap := f32(max(openLayoutElement.children.len - 1, 0)) * config.layout.childGap
+		openLayoutElement.dimensions.y += childGap
+		if !elementHasClipVertical {
+			openLayoutElement.minDimensions.y += childGap
 		}
 	}
-	s.layout_element_children_buffer.len -= open_layout_element.children.len
+	s.layoutElementChildrenBuffer.len -= openLayoutElement.children.len
 
+	// Clamp element min and max height to the values configured in the layout
 	if config.layout.sizing.width.type != .PERCENT {
 		if config.layout.sizing.width.value == nil {
-			config.layout.sizing.width.value = Sizing_Min_Max{}
+			config.layout.sizing.width.value = SizingMinMax{}
 		}
-		if config.layout.sizing.width.value.(Sizing_Min_Max).max <= 0 {
-			width := config.layout.sizing.width.value.(Sizing_Min_Max)
+		if config.layout.sizing.width.value.(SizingMinMax).max <= 0 {
+			width := config.layout.sizing.width.value.(SizingMinMax)
 			width.max = MAX_FLOAT
 			config.layout.sizing.width.value = width
 		}
-		open_layout_element.dimensions.x = min(
+		openLayoutElement.dimensions.x = min(
 			max(
-				open_layout_element.dimensions.x,
-				config.layout.sizing.width.value.(Sizing_Min_Max).min,
+				openLayoutElement.dimensions.x,
+				config.layout.sizing.width.value.(SizingMinMax).min,
 			),
-			config.layout.sizing.width.value.(Sizing_Min_Max).max,
+			config.layout.sizing.width.value.(SizingMinMax).max,
 		)
-		open_layout_element.min_dimensions.x = min(
+		openLayoutElement.minDimensions.x = min(
 			max(
-				open_layout_element.min_dimensions.x,
-				config.layout.sizing.width.value.(Sizing_Min_Max).min,
+				openLayoutElement.minDimensions.x,
+				config.layout.sizing.width.value.(SizingMinMax).min,
 			),
-			config.layout.sizing.width.value.(Sizing_Min_Max).max,
+			config.layout.sizing.width.value.(SizingMinMax).max,
 		)
 	} else {
-		open_layout_element.dimensions.x = 0
+		openLayoutElement.dimensions.x = 0
 	}
 
 	if config.layout.sizing.height.type != .PERCENT {
 		if config.layout.sizing.height.value == nil {
-			config.layout.sizing.height.value = Sizing_Min_Max{}
+			config.layout.sizing.height.value = SizingMinMax{}
 		}
-		if config.layout.sizing.height.value.(Sizing_Min_Max).max <= 0 {
-			height := config.layout.sizing.height.value.(Sizing_Min_Max)
+		if config.layout.sizing.height.value.(SizingMinMax).max <= 0 {
+			height := config.layout.sizing.height.value.(SizingMinMax)
 			height.max = MAX_FLOAT
 			config.layout.sizing.height.value = height
 		}
-		open_layout_element.dimensions.y = min(
+		openLayoutElement.dimensions.y = min(
 			max(
-				open_layout_element.dimensions.y,
-				config.layout.sizing.height.value.(Sizing_Min_Max).min,
+				openLayoutElement.dimensions.y,
+				config.layout.sizing.height.value.(SizingMinMax).min,
 			),
-			config.layout.sizing.height.value.(Sizing_Min_Max).max,
+			config.layout.sizing.height.value.(SizingMinMax).max,
 		)
-		open_layout_element.min_dimensions.y = min(
+		openLayoutElement.minDimensions.y = min(
 			max(
-				open_layout_element.min_dimensions.y,
-				config.layout.sizing.height.value.(Sizing_Min_Max).min,
+				openLayoutElement.minDimensions.y,
+				config.layout.sizing.height.value.(SizingMinMax).min,
 			),
-			config.layout.sizing.height.value.(Sizing_Min_Max).max,
+			config.layout.sizing.height.value.(SizingMinMax).max,
 		)
 	} else {
-		open_layout_element.dimensions.y = 0
+		openLayoutElement.dimensions.y = 0
 	}
-	update_aspect_ratio_box(open_layout_element)
+	updateAspectRatioBox(openLayoutElement)
 
-	element_is_floating := config.floating.attach_to != .NONE
+	elementIsFloating := config.floating.attachTo != .NONE
 
 	// Close current element
-	closing_element_idx := array_pop(&s.open_layout_element_stack)
-	open_layout_element = get_open_layout_element()
+	closingElementIdx := arrayPop(&s.openLayoutElementStack)
+	openLayoutElement = getOpenLayoutElement()
 
-	if s.open_layout_element_stack.len > 1 { 	// > 1 due to default root
-		if element_is_floating {
-			open_layout_element.floating_children_count += 1
+	if s.openLayoutElementStack.len > 1 { 	// > 1 due to default root
+		if elementIsFloating {
+			openLayoutElement.floatingChildrenCount += 1
 			return
 		}
-		open_layout_element.children.len += 1
-		array_push(&s.layout_element_children_buffer, closing_element_idx)
+		openLayoutElement.children.len += 1
+		arrayPush(&s.layoutElementChildrenBuffer, closingElementIdx)
 	}
 }
 
 // TODO SIMD
 @(private = "file")
-mem_cmp :: proc(s1, s2: []byte, length: int) -> bool {
+memCmp :: proc(s1, s2: []byte, length: int) -> bool {
 	for i in 0 ..< length {
 		if s1[i] != s2[i] {
 			return false
@@ -1237,220 +1269,231 @@ mem_cmp :: proc(s1, s2: []byte, length: int) -> bool {
 	return true
 }
 
-open_element :: proc() {
-	if s.layout_elements.len == s.layout_elements.cap - 1 ||
-	   s.boolean_warnings.max_elements_exceeded {
-		s.boolean_warnings.max_elements_exceeded = true
+openElement :: proc() {
+	if s.layoutElements.len == s.layoutElements.cap - 1 || s.booleanWarnings.maxElementsExceeded {
+		s.booleanWarnings.maxElementsExceeded = true
 		return
 	}
-	layout_element: Layout_Element = {}
-	open_layout_element := array_push(&s.layout_elements, layout_element)
-	array_push(&s.open_layout_element_stack, s.layout_elements.len - 1)
-	generate_id_for_anonymous_element(open_layout_element)
-	if s.open_clip_element_stack.len > 0 {
-		array_set(
-			&s.layout_element_clip_element_ids,
-			s.layout_elements.len - 1,
-			array_peek(s.open_clip_element_stack),
+	layoutElement: LayoutElement = {}
+	openLayoutElement := arrayPush(&s.layoutElements, layoutElement)
+	arrayPush(&s.openLayoutElementStack, s.layoutElements.len - 1)
+	// Generate an ID
+	parentElement := arrayGetPtr(
+		&s.layoutElements,
+		arrayGet(s.openLayoutElementStack, s.openLayoutElementStack.len - 2),
+	)
+	offset := parentElement.children.len + int(parentElement.floatingChildrenCount)
+	elementId := hashNumber(u32(offset), parentElement.id)
+	openLayoutElement.id = elementId.id
+	addHashMapItem(elementId, openLayoutElement)
+	arrayPush(&s.layoutElementIdStrings, elementId.stringId)
+
+	if s.openClipElementStack.len > 0 {
+		arraySet(
+			&s.layoutElementClipElementIds,
+			s.layoutElements.len - 1,
+			arrayPeek(s.openClipElementStack),
 		)
 	} else {
-		array_set(&s.layout_element_clip_element_ids, s.layout_elements.len - 1, 0)
+		arraySet(&s.layoutElementClipElementIds, s.layoutElements.len - 1, 0)
 	}
 }
 
-open_element_with_id :: proc(element_id: Element_ID) {
-	if s.layout_elements.len == s.layout_elements.cap - 1 ||
-	   s.boolean_warnings.max_elements_exceeded {
-		s.boolean_warnings.max_elements_exceeded = true
+openElementWithId :: proc(elementId: ElementID) {
+	if s.layoutElements.len == s.layoutElements.cap - 1 || s.booleanWarnings.maxElementsExceeded {
+		s.booleanWarnings.maxElementsExceeded = true
 		return
 	}
-	layout_element: Layout_Element = {}
-	layout_element.id = element_id.id
-	open_layout_element := array_push(&s.layout_elements, layout_element)
-	array_push(&s.open_layout_element_stack, s.layout_elements.len - 1)
-	add_hash_map_item(element_id, open_layout_element)
-	array_push(&s.layout_element_id_strings, element_id.string_id)
-	if s.open_clip_element_stack.len > 0 {
-		array_set(
-			&s.layout_element_clip_element_ids,
-			s.layout_elements.len - 1,
-			array_peek(s.open_clip_element_stack),
+	layoutElement: LayoutElement = {}
+	layoutElement.id = elementId.id
+	openLayoutElement := arrayPush(&s.layoutElements, layoutElement)
+	arrayPush(&s.openLayoutElementStack, s.layoutElements.len - 1)
+	addHashMapItem(elementId, openLayoutElement)
+	arrayPush(&s.layoutElementIdStrings, elementId.stringId)
+	if s.openClipElementStack.len > 0 {
+		arraySet(
+			&s.layoutElementClipElementIds,
+			s.layoutElements.len - 1,
+			arrayPeek(s.openClipElementStack),
 		)
 	} else {
-		array_set(&s.layout_element_clip_element_ids, s.layout_elements.len - 1, 0)
+		arraySet(&s.layoutElementClipElementIds, s.layoutElements.len - 1, 0)
 	}
 }
 
 @(private = "file")
-open_text_element :: proc(text: string, config: Text_Element_Config) {
-	if s.layout_elements.len == s.layout_elements.cap - 1 ||
-	   s.boolean_warnings.max_elements_exceeded {
-		s.boolean_warnings.max_elements_exceeded = true
+openTextElement :: proc(text: string, config: TextElementConfig) {
+	if s.layoutElements.len == s.layoutElements.cap - 1 || s.booleanWarnings.maxElementsExceeded {
+		s.booleanWarnings.maxElementsExceeded = true
 		return
 	}
 
-	parent_element := get_open_layout_element()
+	parentElement := getOpenLayoutElement()
 
-	layout_element := Layout_Element {
-		config = Text_Declaration{config = config},
+	layoutElement := LayoutElement {
+		config = TextDeclaration{config = config},
 	}
-	text_element := array_push(&s.layout_elements, layout_element)
-	if s.open_clip_element_stack.len > 0 {
-		array_set(
-			&s.layout_element_clip_element_ids,
-			s.layout_elements.len - 1,
-			array_peek(s.open_clip_element_stack),
+	textElement := arrayPush(&s.layoutElements, layoutElement)
+	if s.openClipElementStack.len > 0 {
+		arraySet(
+			&s.layoutElementClipElementIds,
+			s.layoutElements.len - 1,
+			arrayPeek(s.openClipElementStack),
 		)
 	} else {
-		array_set(&s.layout_element_clip_element_ids, s.layout_elements.len - 1, 0)
+		arraySet(&s.layoutElementClipElementIds, s.layoutElements.len - 1, 0)
 	}
 
-	array_push(&s.layout_element_children_buffer, s.layout_elements.len - 1)
-	text_measured := measure_text_cached(text, config)
-	element_id := hash_number(
-		u32(parent_element.children.len) + u32(parent_element.floating_children_count),
-		parent_element.id,
+	arrayPush(&s.layoutElementChildrenBuffer, s.layoutElements.len - 1)
+	textMeasured := measureTextCached(text, config)
+	elementId := hashNumber(
+		u32(parentElement.children.len) + u32(parentElement.floatingChildrenCount),
+		parentElement.id,
 	)
-	text_element.id = element_id.id
-	add_hash_map_item(element_id, text_element)
-	array_push(&s.layout_element_id_strings, element_id.string_id)
-	text_dimensions := [2]f32 {
-		text_measured.unwrapped_dimension.x,
-		config.line_height > 0 ? config.line_height : text_measured.unwrapped_dimension.y,
+	textElement.id = elementId.id
+	addHashMapItem(elementId, textElement)
+	arrayPush(&s.layoutElementIdStrings, elementId.stringId)
+	textDimensions := [2]f32 {
+		textMeasured.unwrappedDimension.x,
+		config.lineHeight > 0 ? config.lineHeight : textMeasured.unwrappedDimension.y,
 	}
-	text_element.dimensions = text_dimensions
-	text_element.min_dimensions = {text_measured.min_width, text_dimensions.y}
-	config := &text_element.config.(Text_Declaration)
-	config.data = Text_Element_Data {
-		text                 = text,
-		preferred_dimensions = text_measured.unwrapped_dimension,
-		idx                  = s.layout_elements.len - 1,
+	textElement.dimensions = textDimensions
+	textElement.minDimensions = {textMeasured.minWidth, textDimensions.y}
+	config := &textElement.config.(TextDeclaration)
+	config.data = TextElementData {
+		text                = text,
+		preferredDimensions = textMeasured.unwrappedDimension,
 	}
-	element_count := s.max_element_count
-	parent_element.children.len += 1
+	parentElement.children.len += 1
 }
 
-configure_open_element :: proc(declaration: Element_Declaration) -> bool {
-	open_layout_element := get_open_layout_element()
-	open_layout_element.config = declaration
-	config := &open_layout_element.config.(Element_Declaration)
+configureOpenElement :: proc(declaration: ElementDeclaration) -> bool {
+	openLayoutElement := getOpenLayoutElement()
+	openLayoutElement.config = declaration
+	config := &openLayoutElement.config.(ElementDeclaration)
 	if (declaration.layout.sizing.width.type == .PERCENT &&
 		   declaration.layout.sizing.width.value.(Percent) > 1) ||
 	   (declaration.layout.sizing.height.type == .PERCENT &&
 			   declaration.layout.sizing.height.value.(Percent) > 1) {
-		s.error_handler.err_proc(
-			Error_Data {
+		s.errorHandler.errProc(
+			ErrorData {
 				type = .PERCENTAGE_OVER_1,
 				text = "An element was configured with PERCENT sizing, but the provided percentage value was over 1.0. Claydo expects a value between 0 and 1, i.e. 20% is 0.2.",
-				user_ptr = s.error_handler.user_ptr,
+				userPtr = s.errorHandler.userPtr,
 			},
 		)
 	}
-	if declaration.floating.attach_to != .NONE {
-		floating_config := &config.floating
-		hierarchical_parent := array_get_ptr(
-			&s.layout_elements,
-			array_get(s.open_layout_element_stack, s.open_layout_element_stack.len - 2),
+	if declaration.floating.attachTo != .NONE {
+		floatingConfig := &config.floating
+		hierarchicalParent := arrayGetPtr(
+			&s.layoutElements,
+			arrayGet(s.openLayoutElementStack, s.openLayoutElementStack.len - 2),
 		)
-		if hierarchical_parent != nil {
-			clip_element_id := 0
-			if declaration.floating.attach_to == .PARENT {
+		if hierarchicalParent != nil {
+			clipElementId := 0
+			if declaration.floating.attachTo == .PARENT {
 				// attach to direct hierarchical parent
-				floating_config.parent_id = hierarchical_parent.id
-				if s.open_clip_element_stack.len > 0 {
-					clip_element_id = array_get(
-						s.open_clip_element_stack,
-						s.open_clip_element_stack.len - 1,
+				floatingConfig.parentId = hierarchicalParent.id
+				if s.openClipElementStack.len > 0 {
+					clipElementId = arrayGet(
+						s.openClipElementStack,
+						s.openClipElementStack.len - 1,
 					)
 				}
-			} else if declaration.floating.attach_to == .ELEMENT_WITH_ID {
-				parent_item := get_hash_map_item(floating_config.parent_id)
-				if parent_item == &DEFAULT_LAYOUT_ELEMENT_HASH_MAP_ITEM {
-					s.error_handler.err_proc(
-						Error_Data {
+			} else if declaration.floating.attachTo == .ELEMENT_WITH_ID {
+				parentItem := getHashMapItem(floatingConfig.parentId)
+				if parentItem == &DEFAULT_LAYOUT_ELEMENT_HASH_MAP_ITEM {
+					s.errorHandler.errProc(
+						ErrorData {
 							type = .FLOATING_CONTAINER_PARENT_NOT_FOUND,
-							text = "A floating element was declared with a parent_id, but no element with that ID was found.",
-							user_ptr = s.error_handler.user_ptr,
+							text = "A floating element was declared with a parentId, but no element with that ID was found.",
+							userPtr = s.errorHandler.userPtr,
 						},
 					)
 				} else {
-					clip_element_id = array_get(
-						s.layout_element_clip_element_ids,
-						intrinsics.ptr_sub(
-							parent_item.layout_element,
-							&s.layout_elements.items[0],
-						),
+					clipElementId = arrayGet(
+						s.layoutElementClipElementIds,
+						intrinsics.ptr_sub(parentItem.layoutElement, &s.layoutElements.items[0]),
 					)
 				}
-			} else if declaration.floating.attach_to == .ROOT {
-				floating_config.parent_id = hash_string("claydo_root_container", 0).id
+			} else if declaration.floating.attachTo == .ROOT {
+				floatingConfig.parentId = hashString("Clay__RootContainer", 0).id
 			}
-			if declaration.floating.clip_to == .NONE {
-				clip_element_id = 0
+			if declaration.floating.clipTo == .NONE {
+				clipElementId = 0
 			}
-			current_element_idx := array_peek(s.open_layout_element_stack)
-			array_set(&s.layout_element_clip_element_ids, current_element_idx, clip_element_id)
-			array_push(&s.open_clip_element_stack, clip_element_id)
-			array_push(
-				&s.layout_element_tree_roots,
-				Layout_Element_Tree_Root {
-					layout_element_idx = array_peek(s.open_layout_element_stack),
-					parent_id = floating_config.parent_id,
-					clip_element_id = u32(clip_element_id),
-					z_idx = floating_config.z_idx,
+			currentElementIdx := arrayPeek(s.openLayoutElementStack)
+			arraySet(&s.layoutElementClipElementIds, currentElementIdx, clipElementId)
+			arrayPush(&s.openClipElementStack, clipElementId)
+			arrayPush(
+				&s.layoutElementTreeRoots,
+				LayoutElementTreeRoot {
+					layoutElementIdx = arrayPeek(s.openLayoutElementStack),
+					parentId = floatingConfig.parentId,
+					clipElementId = u32(clipElementId),
+					zIdx = floatingConfig.zIdx,
 				},
 			)
 		}
 	}
 	if declaration.clip.horizontal || declaration.clip.vertical {
-		array_push(&s.open_clip_element_stack, int(open_layout_element.id))
-		scroll_offset: ^Scroll_Container_Data_Internal = nil
-		for &mapping in array_iter(s.scroll_container_datas) {
-			if open_layout_element.id == mapping.element_id {
-				scroll_offset = &mapping
-				scroll_offset.layout_element = mapping.layout_element
-				scroll_offset.open_this_frame = true
+		arrayPush(&s.openClipElementStack, int(openLayoutElement.id))
+		scrollOffset: ^ScrollContainerDataInternal = nil
+		for &mapping in arrayIter(s.scrollContainerDatas) {
+			if openLayoutElement.id == mapping.elementId {
+				scrollOffset = &mapping
+				scrollOffset.layoutElement = mapping.layoutElement
+				scrollOffset.openThisFrame = true
 			}
 		}
-		if scroll_offset == nil {
-			scroll_offset = array_push(
-				&s.scroll_container_datas,
-				Scroll_Container_Data_Internal {
-					layout_element = open_layout_element,
-					scroll_origin = {-1, -1},
-					element_id = open_layout_element.id,
-					open_this_frame = true,
+		if scrollOffset == nil {
+			scrollOffset = arrayPush(
+				&s.scrollContainerDatas,
+				ScrollContainerDataInternal {
+					layoutElement = openLayoutElement,
+					scrollOrigin = {-1, -1},
+					elementId = openLayoutElement.id,
+					openThisFrame = true,
 				},
 			)
 		}
-		if s.external_scroll_handling_enabled {
-			scroll_offset.scroll_position = s.query_scroll_offset(
-				scroll_offset.element_id,
-				s.query_scroll_offset_user_ptr,
+		if s.externalScrollHandlingEnabled {
+			scrollOffset.scrollPosition = s.queryScrollOffset(
+				scrollOffset.elementId,
+				s.queryScrollOffsetUserPtr,
 			)
 		}
 	}
 	if declaration.transition.handler != nil {
-		// create cached data to track scroll position across frames
-		transition_data: ^Transition_Data_Internal = nil
-		parent_element := get_parent_element()
-		for &existing_data in array_iter(s.transition_datas) {
-			if (open_layout_element.id == existing_data.element_id) {
-				transition_data = &existing_data
-				transition_data.element_this_frame = open_layout_element
-				transition_data.parent_id = parent_element.id
-				transition_data.sibling_idx = u32(parent_element.children.len)
+		// Setup data to track transitions across frames
+		transitionData: ^TransitionDataInternal = {}
+		parentElement := getParentElement()
+		for &existingData in arrayIter(s.transitionDatas) {
+			if (openLayoutElement.id == existingData.elementId) {
+				if (existingData.state == .EXITING) {
+					existingData.state = .IDLE
+					hashMapItem := getHashMapItem(openLayoutElement.id)
+					hashMapItem.appearedThisFrame = false
+				}
+				transitionData = &existingData
+				transitionData.elementThisFrame = openLayoutElement
+				if transitionData.parentId != parentElement.id {
+					transitionData.reparented = true
+				}
+				transitionData.parentId = parentElement.id
+				transitionData.siblingIdx = u32(parentElement.children.len)
+				transitionData.transitionOut = declaration.transition.exit.setFinalState != nil
 			}
 		}
-		if transition_data == nil {
-			transition_data = array_push(
-				&s.transition_datas,
-				Transition_Data_Internal {
-					state = .ENTERING,
-					element_id = open_layout_element.id,
-					element_this_frame = open_layout_element,
-					parent_id = parent_element != nil ? parent_element.id : 0,
-					sibling_idx = parent_element != nil ? u32(parent_element.children.len) : 0,
+		if transitionData == nil {
+			transitionData = arrayPush(
+				&s.transitionDatas,
+				TransitionDataInternal {
+					elementThisFrame = openLayoutElement,
+					elementId = openLayoutElement.id,
+					parentId = parentElement.id,
+					siblingIdx = u32(parentElement.children.len),
+					transitionOut = declaration.transition.exit.setFinalState != nil,
 				},
 			)
 		}
@@ -1460,89 +1503,78 @@ configure_open_element :: proc(declaration: Element_Declaration) -> bool {
 
 // TODO just clear instead of re-initializing
 @(private = "file")
-initialize_ephemeral_memory :: proc(s: ^State) {
-	max_element_count := s.max_element_count
+initializeEphemeralMemory :: proc(s: ^State) {
+	maxElementCount := s.maxElementCount
 	// TODO don't need to zero
-	virtual.arena_static_reset_to(&s.arena_internal, s.arena_reset_point)
-	s.layout_element_children_buffer = array_create(int, max_element_count, s.arena)
-	s.layout_elements = array_create(Layout_Element, max_element_count, s.arena)
-	s.warnings = array_create(Warning, 100, s.arena)
+	virtual.arena_static_reset_to(&s.arenaInternal, s.arenaResetPoint)
+	s.layoutElementChildrenBuffer = arrayCreate(int, maxElementCount, s.arena)
+	s.layoutElements = arrayCreate(LayoutElement, maxElementCount, s.arena)
+	s.warnings = arrayCreate(Warning, 100, s.arena)
 
-	s.layout_element_id_strings = array_create(string, max_element_count, s.arena)
-	s.wrapped_text_lines = array_create(Wrapped_Text_Line, max_element_count, s.arena)
-	s.layout_element_tree_nodes = array_create(
-		Layout_Element_Tree_Node,
-		max_element_count,
-		s.arena,
-	)
-	s.layout_element_tree_roots = array_create(
-		Layout_Element_Tree_Root,
-		max_element_count,
-		s.arena,
-	)
-	s.layout_element_children = array_create(int, max_element_count, s.arena)
-	s.open_layout_element_stack = array_create(int, max_element_count, s.arena)
-	s.render_commands = array_create(Render_Command, max_element_count, s.arena)
-	s.tree_node_visited = array_create(bool, max_element_count, s.arena)
-	s.tree_node_visited.len = s.tree_node_visited.cap
-	s.open_clip_element_stack = array_create(int, max_element_count, s.arena)
-	s.reusable_element_idx_buffer = array_create(int, max_element_count, s.arena)
-	s.layout_element_clip_element_ids = array_create(int, max_element_count, s.arena)
-	s.dynamic_string_data = array_create(byte, max_element_count, s.arena)
+	s.layoutElementIdStrings = arrayCreate(string, maxElementCount, s.arena)
+	s.wrappedTextLines = arrayCreate(WrappedTextLine, maxElementCount, s.arena)
+	s.layoutElementTreeNodes = arrayCreate(LayoutElementTreeNode, maxElementCount, s.arena)
+	s.layoutElementTreeRoots = arrayCreate(LayoutElementTreeRoot, maxElementCount, s.arena)
+	s.layoutElementChildren = arrayCreate(int, maxElementCount, s.arena)
+	s.openLayoutElementStack = arrayCreate(int, maxElementCount, s.arena)
+	s.renderCommands = arrayCreate(RenderCommand, maxElementCount, s.arena)
+	s.treeNodeVisited = arrayCreate(bool, maxElementCount, s.arena)
+	s.treeNodeVisited.len = s.treeNodeVisited.cap
+	s.openClipElementStack = arrayCreate(int, maxElementCount, s.arena)
+	s.reusableElementIdxBuffer = arrayCreate(int, maxElementCount, s.arena)
+	s.layoutElementClipElementIds = arrayCreate(int, maxElementCount, s.arena)
+	s.dynamicStringData = arrayCreate(byte, maxElementCount, s.arena)
 }
 
 @(private = "file")
-initialize_persistent_memory :: proc(s: ^State) {
-	max_element_count := s.max_element_count
-	max_max_measure_text_cache_word_count := s.max_measure_text_cache_word_count
-	s.scroll_container_datas = array_create(Scroll_Container_Data_Internal, 100, s.arena)
-	s.transition_datas = array_create(Transition_Data_Internal, 100, s.arena)
-	s.layout_elements_hash_map_internal = array_create(
-		Layout_Element_Hash_Map_Item,
-		max_element_count,
+initializePersistentMemory :: proc(s: ^State) {
+	maxElementCount := s.maxElementCount
+	maxMaxMeasureTextCacheWordCount := s.maxMeasureTextCacheWordCount
+	s.scrollContainerDatas = arrayCreate(ScrollContainerDataInternal, 100, s.arena)
+	s.transitionDatas = arrayCreate(TransitionDataInternal, 100, s.arena)
+	s.layoutElementsHashMapInternal = arrayCreate(
+		LayoutElementHashMapItem,
+		maxElementCount,
 		s.arena,
 	)
-	s.layout_elements_hash_map = array_create(int, max_element_count, s.arena)
-	s.measure_text_hash_map = array_create(int, max_element_count, s.arena)
-	s.measure_text_hash_map_internal = array_create(
-		Measure_Text_Cache_Item,
-		max_element_count,
-		s.arena,
-	)
-	s.measure_text_hash_map_internal_free_list = array_create(int, max_element_count, s.arena)
-	s.measured_words_free_list = array_create(int, max_element_count, s.arena)
-	s.measured_words = array_create(Measured_Word, max_max_measure_text_cache_word_count, s.arena)
-	s.cursor_over_ids = array_create(Element_ID, max_element_count, s.arena)
-	s.debug_element_data = array_create(Debug_Element_Data, max_element_count, s.arena)
+	s.layoutElementsHashMap = arrayCreate(int, maxElementCount, s.arena)
+	s.measureTextHashMap = arrayCreate(int, maxElementCount, s.arena)
+	s.measureTextHashMapInternal = arrayCreate(MeasureTextCacheItem, maxElementCount, s.arena)
+	s.measureTextHashMapInternalFreeList = arrayCreate(int, maxElementCount, s.arena)
+	s.measuredWordsFreeList = arrayCreate(int, maxElementCount, s.arena)
+	s.measuredWords = arrayCreate(MeasuredWord, maxMaxMeasureTextCacheWordCount, s.arena)
+	s.pointerOverIds = arrayCreate(ElementID, maxElementCount, s.arena)
+	s.debugElementData = arrayCreate(DebugElementData, maxElementCount, s.arena)
 }
 
 @(private = "file")
-size_containers_along_axis :: proc(
-	x_axis: bool,
-	text_elements_out: ^Array(int),
-	aspect_ratio_elements_out: ^Array(int),
+sizeContainersAlongAxis :: proc(
+	xAxis: bool,
+	deltaTime: f32,
+	textElementsOut: ^Array(int),
+	aspectRatioElementsOut: ^Array(int),
 ) {
-	bfs_buffer := s.layout_element_children_buffer
-	resizable_container_buffer := s.open_layout_element_stack
-	for &root in array_iter(s.layout_element_tree_roots) {
-		bfs_buffer.len = 0
-		root_element := array_get_ptr(&s.layout_elements, root.layout_element_idx)
-		config := root_element.config.(Element_Declaration)
-		array_push(&bfs_buffer, root.layout_element_idx)
-		if config.floating.attach_to != .NONE {
-			floating_element_config := &config.floating
-			parent_item := get_hash_map_item(floating_element_config.parent_id)
-			if parent_item != nil && parent_item != &DEFAULT_LAYOUT_ELEMENT_HASH_MAP_ITEM {
-				parent_layout_element := parent_item.layout_element
+	bfsBuffer := s.layoutElementChildrenBuffer
+	resizableContainerBuffer := s.openLayoutElementStack
+	for &root in arrayIter(s.layoutElementTreeRoots) {
+		bfsBuffer.len = 0
+		rootElement := arrayGetPtr(&s.layoutElements, root.layoutElementIdx)
+		config := rootElement.config.(ElementDeclaration)
+		arrayPush(&bfsBuffer, root.layoutElementIdx)
+		if config.floating.attachTo != .NONE {
+			floatingElementConfig := &config.floating
+			parentItem := getHashMapItem(floatingElementConfig.parentId)
+			if parentItem != nil && parentItem != &DEFAULT_LAYOUT_ELEMENT_HASH_MAP_ITEM {
+				parentLayoutElement := parentItem.layoutElement
 				#partial switch config.layout.sizing.width.type {
 				case .GROW:
 					{
-						root_element.dimensions.x = parent_layout_element.dimensions.x
+						rootElement.dimensions.x = parentLayoutElement.dimensions.x
 					}
 				case .PERCENT:
 					{
-						root_element.dimensions.x =
-							parent_layout_element.dimensions.x *
+						rootElement.dimensions.x =
+							parentLayoutElement.dimensions.x *
 							f32(config.layout.sizing.width.value.(Percent))
 					}
 				}
@@ -1550,252 +1582,243 @@ size_containers_along_axis :: proc(
 				#partial switch config.layout.sizing.height.type {
 				case .GROW:
 					{
-						root_element.dimensions.y = parent_layout_element.dimensions.y
+						rootElement.dimensions.y = parentLayoutElement.dimensions.y
 					}
 				case .PERCENT:
 					{
-						root_element.dimensions.y =
-							parent_layout_element.dimensions.y *
+						rootElement.dimensions.y =
+							parentLayoutElement.dimensions.y *
 							f32(config.layout.sizing.height.value.(Percent))
 					}
 				}
 			}
 		}
 		if config.layout.sizing.width.type != .PERCENT {
-			root_element.dimensions.x = min(
-				max(
-					root_element.dimensions.x,
-					config.layout.sizing.width.value.(Sizing_Min_Max).min,
-				),
-				config.layout.sizing.width.value.(Sizing_Min_Max).max,
+			rootElement.dimensions.x = min(
+				max(rootElement.dimensions.x, config.layout.sizing.width.value.(SizingMinMax).min),
+				config.layout.sizing.width.value.(SizingMinMax).max,
 			)
 		}
 		if config.layout.sizing.height.type != .PERCENT {
-			root_element.dimensions.y = min(
+			rootElement.dimensions.y = min(
 				max(
-					root_element.dimensions.y,
-					config.layout.sizing.height.value.(Sizing_Min_Max).min,
+					rootElement.dimensions.y,
+					config.layout.sizing.height.value.(SizingMinMax).min,
 				),
-				config.layout.sizing.height.value.(Sizing_Min_Max).max,
+				config.layout.sizing.height.value.(SizingMinMax).max,
 			)
 		}
-		for i := 0; i < bfs_buffer.len; i += 1 {
-			parent_idx := array_get(bfs_buffer, i)
-			parent := array_get_ptr(&s.layout_elements, parent_idx)
-			parent_layout := parent.config.(Element_Declaration).layout
-			grow_container_count := 0
-			parent_size := x_axis ? parent.dimensions.x : parent.dimensions.y
-			parent_padding :=
-				x_axis ? parent_layout.padding.left + parent_layout.padding.right : parent_layout.padding.top + parent_layout.padding.bottom
-			inner_content_size: f32 = 0
-			total_padding_and_child_gaps := parent_padding
-			sizing_along_axis :=
-				(x_axis && parent_layout.direction == .LEFT_TO_RIGHT) ||
-				(!x_axis && parent_layout.direction == .TOP_TO_BOTTOM)
-			resizable_container_buffer.len = 0
-			parent_child_gap := parent_layout.child_gap
-			for child_element_index, child_offset in array_iter(parent.children) {
-				child_element := array_get_ptr(&s.layout_elements, child_element_index)
-				child_config, is_layout := child_element.config.(Element_Declaration)
-				child_sizing: Sizing_Type
-				child_sizing =
-					is_layout ? (x_axis ? child_config.layout.sizing.width.type : child_config.layout.sizing.height.type) : .FIT
-				child_size := x_axis ? child_element.dimensions.x : child_element.dimensions.y
+		for i := 0; i < bfsBuffer.len; i += 1 {
+			parentIdx := arrayGet(bfsBuffer, i)
+			parent := arrayGetPtr(&s.layoutElements, parentIdx)
+			parentLayout := parent.config.(ElementDeclaration).layout
+			growContainerCount := 0
+			parentSize := xAxis ? parent.dimensions.x : parent.dimensions.y
+			parentPadding :=
+				xAxis ? parentLayout.padding.left + parentLayout.padding.right : parentLayout.padding.top + parentLayout.padding.bottom
+			innerContentSize: f32 = 0
+			totalPaddingAndChildGaps := parentPadding
+			sizingAlongAxis :=
+				(xAxis && parentLayout.direction == .LEFT_TO_RIGHT) ||
+				(!xAxis && parentLayout.direction == .TOP_TO_BOTTOM)
+			resizableContainerBuffer.len = 0
+			parentChildGap := parentLayout.childGap
+			isFirstChild := true
+			for childElementIndex, childOffset in arrayIter(parent.children) {
+				childElement := arrayGetPtr(&s.layoutElements, childElementIndex)
+				childConfig, isLayout := childElement.config.(ElementDeclaration)
+				childSizing: SizingType
+				childSizing =
+					isLayout ? (xAxis ? childConfig.layout.sizing.width.type : childConfig.layout.sizing.height.type) : .FIT
+				childSize := xAxis ? childElement.dimensions.x : childElement.dimensions.y
 
 				// If the child has children, add it to the buffer to process
-				if text_elements_out != nil && !is_layout {
-					array_push(text_elements_out, child_element_index)
-				} else if child_element.children.len > 0 {
-					array_push(&bfs_buffer, child_element_index)
+				if textElementsOut != nil && !isLayout {
+					arrayPush(textElementsOut, childElementIndex)
+				} else if childElement.children.len > 0 {
+					arrayPush(&bfsBuffer, childElementIndex)
 				}
 
-				if is_layout && aspect_ratio_elements_out != nil && child_config.aspect_ratio > 0 {
-					array_push(aspect_ratio_elements_out, child_element_index)
+				if isLayout && aspectRatioElementsOut != nil && childConfig.aspectRatio > 0 {
+					arrayPush(aspectRatioElementsOut, childElementIndex)
 				}
-				if is_layout && child_config.floating.attach_to == .INLINE {
+
+				// Setting isFirstChild = false is skipped
+				if childElement.exiting {
 					continue
 				}
 
-
-				if child_sizing != .PERCENT &&
-				   child_sizing != .FIXED &&
-				   (is_layout ||
-						   child_element.config.(Text_Declaration).config.wrap_mode ==
-							   .WRAP_WORDS) {
-					array_push(&resizable_container_buffer, child_element_index)
+				if childSizing != .PERCENT &&
+				   childSizing != .FIXED &&
+				   (isLayout ||
+						   childElement.config.(TextDeclaration).config.wrapMode == .WRAP_WORDS) {
+					arrayPush(&resizableContainerBuffer, childElementIndex)
 				}
 
-				if sizing_along_axis {
-					inner_content_size += (child_sizing == .PERCENT ? 0 : child_size)
-					if child_sizing == .GROW {
-						grow_container_count += 1
+				if sizingAlongAxis {
+					innerContentSize += (childSizing == .PERCENT ? 0 : childSize)
+					if childSizing == .GROW {
+						growContainerCount += 1
 					}
-					if child_offset > 0 {
-						inner_content_size += parent_child_gap // after 0, offset is the is the gap to the previous child
-						total_padding_and_child_gaps += parent_child_gap
+					if !isFirstChild {
+						innerContentSize += parentChildGap // after 0, offset is the is the gap to the previous child
+						totalPaddingAndChildGaps += parentChildGap
 					}
 				} else {
-					inner_content_size = max(child_size, inner_content_size)
+					innerContentSize = max(childSize, innerContentSize)
 				}
+				isFirstChild = false
 			}
-			for child_element_index, child_offset in array_iter(parent.children) {
-				child_element := array_get_ptr(&s.layout_elements, child_element_index)
-				child_config, is_layout := child_element.config.(Element_Declaration)
-				child_sizing :=
-					is_layout ? (x_axis ? child_config.layout.sizing.width : child_config.layout.sizing.height) : sizing_fit()
-				child_size :=
-					x_axis ? &(child_element.dimensions.x) : &(child_element.dimensions.y)
-				if child_sizing.type == .PERCENT {
-					child_size^ =
-						(parent_size - total_padding_and_child_gaps) *
-						f32(child_sizing.value.(Percent))
-					if sizing_along_axis {
-						inner_content_size += child_size^
+			for childElementIndex, childOffset in arrayIter(parent.children) {
+				childElement := arrayGetPtr(&s.layoutElements, childElementIndex)
+				childConfig, isLayout := childElement.config.(ElementDeclaration)
+				childSizing :=
+					isLayout ? (xAxis ? childConfig.layout.sizing.width : childConfig.layout.sizing.height) : sizingFit()
+				childSize := xAxis ? &(childElement.dimensions.x) : &(childElement.dimensions.y)
+				if childSizing.type == .PERCENT {
+					childSize^ =
+						(parentSize - totalPaddingAndChildGaps) * f32(childSizing.value.(Percent))
+					if sizingAlongAxis {
+						innerContentSize += childSize^
 					}
-					update_aspect_ratio_box(child_element)
+					updateAspectRatioBox(childElement)
 				}
 			}
-			if sizing_along_axis {
+			if sizingAlongAxis {
 
-				size_to_distribute := parent_size - parent_padding - inner_content_size
+				sizeToDistribute := parentSize - parentPadding - innerContentSize
 				// content is too large, compress children as much as possible
-				if size_to_distribute < 0 {
-					config, is_layout := parent.config.(Element_Declaration)
-					if is_layout &&
-					   ((x_axis && config.clip.horizontal) || (!x_axis && config.clip.vertical)) {
+				if sizeToDistribute < 0 {
+					config, isLayout := parent.config.(ElementDeclaration)
+					if isLayout &&
+					   ((xAxis && config.clip.horizontal) || (!xAxis && config.clip.vertical)) {
 						continue
 					}
-					for size_to_distribute < -EPSILON && resizable_container_buffer.len > 0 {
+					for sizeToDistribute < -EPSILON && resizableContainerBuffer.len > 0 {
 						largest: f32 = 0
-						second_largest: f32 = 0
-						width_to_add := size_to_distribute
-						for child_idx in array_iter(resizable_container_buffer) {
-							child := array_get_ptr(&s.layout_elements, child_idx)
-							child_size := x_axis ? child.dimensions.x : child.dimensions.y
-							if child_size > parent.dimensions.x {
+						secondLargest: f32 = 0
+						widthToAdd := sizeToDistribute
+						for childIdx in arrayIter(resizableContainerBuffer) {
+							child := arrayGetPtr(&s.layoutElements, childIdx)
+							childSize := xAxis ? child.dimensions.x : child.dimensions.y
+							if childSize > parent.dimensions.x {
 							}
-							if child_size == largest { 	// TODO float_equals. Required?
+							if floatEquals(childSize, largest) {
 								continue
 							}
-							if child_size > largest {
-								second_largest = largest
-								largest = child_size
+							if childSize > largest {
+								secondLargest = largest
+								largest = childSize
 							}
-							if child_size < largest {
-								second_largest = max(second_largest, child_size)
-								width_to_add = second_largest - largest
+							if childSize < largest {
+								secondLargest = max(secondLargest, childSize)
+								widthToAdd = secondLargest - largest
 							}
 						}
 
-						width_to_add = max(
-							width_to_add,
-							size_to_distribute / f32(resizable_container_buffer.len),
+						widthToAdd = max(
+							widthToAdd,
+							sizeToDistribute / f32(resizableContainerBuffer.len),
 						)
-						for child_idx := 0;
-						    child_idx < resizable_container_buffer.len;
-						    child_idx += 1 {
-							child := array_get_ptr(
-								&s.layout_elements,
-								array_get(resizable_container_buffer, child_idx),
+						for childIdx := 0; childIdx < resizableContainerBuffer.len; childIdx += 1 {
+							child := arrayGetPtr(
+								&s.layoutElements,
+								arrayGet(resizableContainerBuffer, childIdx),
 							)
-							child_size := x_axis ? &child.dimensions.x : &child.dimensions.y
-							min_size := x_axis ? child.min_dimensions.x : child.min_dimensions.y
-							previous_width := child_size^
-							if child_size^ == largest {
-								child_size^ += width_to_add
-								if child_size^ <= min_size {
-									child_size^ = min_size
-									array_swapback(&resizable_container_buffer, child_idx)
-									child_idx -= 1
+							childSize := xAxis ? &child.dimensions.x : &child.dimensions.y
+							minSize := xAxis ? child.minDimensions.x : child.minDimensions.y
+							previousWidth := childSize^
+							if childSize^ == largest {
+								childSize^ += widthToAdd
+								if childSize^ <= minSize {
+									childSize^ = minSize
+									arraySwapback(&resizableContainerBuffer, childIdx)
+									childIdx -= 1
 								}
-								size_to_distribute -= (child_size^ - previous_width)
+								sizeToDistribute -= (childSize^ - previousWidth)
 							}
 						}
 					}
 					// content is too small, expand to fit container
-				} else if size_to_distribute > 0 && grow_container_count > 0 {
-					for child_idx := 0;
-					    child_idx < resizable_container_buffer.len;
-					    child_idx += 1 {
-						child := array_get_ptr(
-							&s.layout_elements,
-							array_get(resizable_container_buffer, child_idx),
+				} else if sizeToDistribute > 0 && growContainerCount > 0 {
+					for childIdx := 0; childIdx < resizableContainerBuffer.len; childIdx += 1 {
+						child := arrayGetPtr(
+							&s.layoutElements,
+							arrayGet(resizableContainerBuffer, childIdx),
 						)
-						config, is_layout := child.config.(Element_Declaration)
-						child_sizing :=
-							is_layout ? (x_axis ? config.layout.sizing.width.type : config.layout.sizing.height.type) : .FIT
-						if child_sizing != .GROW {
-							array_swapback(&resizable_container_buffer, child_idx)
-							child_idx -= 1
+						config, isLayout := child.config.(ElementDeclaration)
+						childSizing :=
+							isLayout ? (xAxis ? config.layout.sizing.width.type : config.layout.sizing.height.type) : .FIT
+						if childSizing != .GROW {
+							arraySwapback(&resizableContainerBuffer, childIdx)
+							childIdx -= 1
 						}
 					}
-					for size_to_distribute > EPSILON && resizable_container_buffer.len > 0 {
+					for sizeToDistribute > EPSILON && resizableContainerBuffer.len > 0 {
 						smallest := MAX_FLOAT
-						second_smallest := MAX_FLOAT
-						width_to_add := size_to_distribute
-						for child_idx in array_iter(resizable_container_buffer) {
-							child := array_get_ptr(&s.layout_elements, child_idx)
-							child_size := x_axis ? child.dimensions.x : child.dimensions.y
-							if child_size == smallest {
+						secondSmallest := MAX_FLOAT
+						widthToAdd := sizeToDistribute
+						for childIdx in arrayIter(resizableContainerBuffer) {
+							child := arrayGetPtr(&s.layoutElements, childIdx)
+							childSize := xAxis ? child.dimensions.x : child.dimensions.y
+							if childSize == smallest {
 								continue
 							}
-							if child_size < smallest {
-								second_smallest = smallest
-								smallest = child_size
+							if childSize < smallest {
+								secondSmallest = smallest
+								smallest = childSize
 							}
-							if child_size > smallest {
-								second_smallest = min(second_smallest, child_size)
-								width_to_add = second_smallest - smallest
+							if childSize > smallest {
+								secondSmallest = min(secondSmallest, childSize)
+								widthToAdd = secondSmallest - smallest
 							}
 						}
-						width_to_add = min(
-							width_to_add,
-							size_to_distribute / f32(resizable_container_buffer.len),
+						widthToAdd = min(
+							widthToAdd,
+							sizeToDistribute / f32(resizableContainerBuffer.len),
 						)
 
-						for child_idx := 0;
-						    child_idx < resizable_container_buffer.len;
-						    child_idx += 1 {
-							child := array_get_ptr(
-								&s.layout_elements,
-								array_get(resizable_container_buffer, child_idx),
+						for childIdx := 0; childIdx < resizableContainerBuffer.len; childIdx += 1 {
+							child := arrayGetPtr(
+								&s.layoutElements,
+								arrayGet(resizableContainerBuffer, childIdx),
 							)
-							child_size := x_axis ? &child.dimensions.x : &child.dimensions.y
-							max_size :=
-								x_axis ? config.layout.sizing.width.value.(Sizing_Min_Max).max : config.layout.sizing.height.value.(Sizing_Min_Max).max
-							previous_width := child_size^
-							if child_size^ == smallest {
-								child_size^ += width_to_add
-								if child_size^ >= max_size {
-									child_size^ = max_size
-									array_swapback(&resizable_container_buffer, child_idx)
-									child_idx -= 1
+							childSize := xAxis ? &child.dimensions.x : &child.dimensions.y
+							maxSize :=
+								xAxis ? config.layout.sizing.width.value.(SizingMinMax).max : config.layout.sizing.height.value.(SizingMinMax).max
+							previousWidth := childSize^
+							if childSize^ == smallest {
+								childSize^ += widthToAdd
+								if childSize^ >= maxSize {
+									childSize^ = maxSize
+									arraySwapback(&resizableContainerBuffer, childIdx)
+									childIdx -= 1
 								}
-								size_to_distribute -= (child_size^ - previous_width)
+								sizeToDistribute -= (childSize^ - previousWidth)
 							}
 						}
 					}
 				}
 				// Sizing off-axis
 			} else {
-				for child_offset in array_iter(resizable_container_buffer) {
-					child_element := array_get_ptr(&s.layout_elements, child_offset)
-					config, is_layout := child_element.config.(Element_Declaration)
-					child_sizing :=
-						is_layout ? (x_axis ? config.layout.sizing.width : config.layout.sizing.height) : sizing_fit()
-					min_size :=
-						x_axis ? child_element.min_dimensions.x : child_element.min_dimensions.y
-					child_size :=
-						x_axis ? &child_element.dimensions.x : &child_element.dimensions.y
-					max_size := parent_size - parent_padding
+				for childOffset in arrayIter(resizableContainerBuffer) {
+					childElement := arrayGetPtr(&s.layoutElements, childOffset)
+					config, isLayout := childElement.config.(ElementDeclaration)
+					childSizing :=
+						isLayout ? (xAxis ? config.layout.sizing.width : config.layout.sizing.height) : sizingFit()
+					minSize := xAxis ? childElement.minDimensions.x : childElement.minDimensions.y
+					childSize := xAxis ? &childElement.dimensions.x : &childElement.dimensions.y
+					maxSize := parentSize - parentPadding
 					// if laying out children of scroll panel grow containers expand to inner content not outer container
-					if (x_axis && config.clip.horizontal) || (!x_axis && config.clip.vertical) {
-						max_size = max(max_size, inner_content_size)
+					parentConfig := parent.config.(ElementDeclaration)
+					if (xAxis && parentConfig.clip.horizontal) ||
+					   (!xAxis && parentConfig.clip.vertical) {
+						maxSize = max(maxSize, innerContentSize)
 					}
-					if child_sizing.type == .GROW {
-						child_size^ = min(max_size, child_sizing.value.(Sizing_Min_Max).max)
+					if childSizing.type == .GROW {
+						childSize^ = min(maxSize, childSizing.value.(SizingMinMax).max)
 					}
-					child_size^ = max(min_size, min(child_size^, max_size))
+					childSize^ = max(minSize, min(childSize^, maxSize))
 				}
 			}
 		}
@@ -1804,12 +1827,12 @@ size_containers_along_axis :: proc(
 
 
 @(private = "file")
-int_to_string :: proc(integer: int) -> string {
+intToString :: proc(integer: int) -> string {
 	integer := integer
 	if integer == 0 {
 		return "0"
 	}
-	chars := s.dynamic_string_data.items[s.dynamic_string_data.len:]
+	chars := s.dynamicStringData.items[s.dynamicStringData.len:]
 	length := 0
 	sign := integer
 	if integer < 0 {
@@ -1828,22 +1851,22 @@ int_to_string :: proc(integer: int) -> string {
 	for j := 0; j < length; j += 1 {
 		chars[j], chars[length - j] = chars[length - j], chars[j]
 	}
-	s.dynamic_string_data.len += length
+	s.dynamicStringData.len += length
 	return string(chars[:length])
 }
 
 @(private = "file")
-push_render_command :: proc(render_command: Render_Command) {
-	if s.render_commands.len < s.render_commands.cap - 1 {
-		array_push(&s.render_commands, render_command)
+pushRenderCommand :: proc(renderCommand: RenderCommand) {
+	if s.renderCommands.len < s.renderCommands.cap - 1 {
+		arrayPush(&s.renderCommands, renderCommand)
 	} else {
-		if !s.boolean_warnings.max_render_commands_exceeded {
-			s.boolean_warnings.max_render_commands_exceeded = true
-			s.error_handler.err_proc(
-				Error_Data {
+		if !s.booleanWarnings.maxRenderCommandsExceeded {
+			s.booleanWarnings.maxRenderCommandsExceeded = true
+			s.errorHandler.errProc(
+				ErrorData {
 					type = .ELEMENTS_CAPACITY_EXCEEDED,
-					text = "Claydo ran out of capacity while attempting to create render commands. This is usually caused by a large amount of wrapping text elements while close to the max element capacity. Try using set_max_element_count() with a higher value.",
-					user_ptr = s.error_handler.user_ptr,
+					text = "Claydo ran out of capacity while attempting to create render commands. This is usually caused by a large amount of wrapping text elements while close to the max element capacity. Try using setMaxElementCount() with a higher value.",
+					userPtr = s.errorHandler.userPtr,
 				},
 			)
 		}
@@ -1851,990 +1874,897 @@ push_render_command :: proc(render_command: Render_Command) {
 }
 
 @(private = "file")
-element_is_offscreen :: proc(bounding_box: ^Bounding_Box) -> bool {
-	if s.disable_culling {
+elementIsOffscreen :: proc(boundingBox: ^BoundingBox) -> bool {
+	if s.disableCulling {
 		return false
 	}
 	return(
-		(bounding_box.x > s.layout_dimensions.x) ||
-		(bounding_box.y > s.layout_dimensions.y) ||
-		(bounding_box.x + bounding_box.width < 0) ||
-		(bounding_box.y + bounding_box.height < 0) \
+		(boundingBox.x > s.layoutDimensions.x) ||
+		(boundingBox.y > s.layoutDimensions.y) ||
+		(boundingBox.x + boundingBox.width < 0) ||
+		(boundingBox.y + boundingBox.height < 0) \
 	)
 }
 
 @(private = "file")
-create_transition_data_for_element :: proc(
-	bounding_box: ^Bounding_Box,
-	layout_element: ^Layout_Element,
-) -> Transition_Data {
-	return Transition_Data {
-		bounding_box = bounding_box^,
-		color = layout_element.config.(Element_Declaration).color,
-		overlay_color = layout_element.config.(Element_Declaration).overlay_color,
+createTransitionDataForElement :: proc(
+	boundingBox: ^BoundingBox,
+	layoutElement: ^LayoutElement,
+) -> TransitionData {
+	return TransitionData {
+		boundingBox = boundingBox^,
+		color = layoutElement.config.(ElementDeclaration).backgroundColor,
+		overlayColor = layoutElement.config.(ElementDeclaration).overlayColor,
 	}
 }
 
 @(private = "file")
-should_transition :: proc(current: ^Transition_Data, target: ^Transition_Data) -> bool {
-	if !float_equal(current.bounding_box.x, target.bounding_box.x) ||
-	   !float_equal(current.bounding_box.y, target.bounding_box.y) ||
-	   !float_equal(current.bounding_box.width, target.bounding_box.width) ||
-	   !float_equal(current.bounding_box.height, target.bounding_box.height) {
+shouldTransition :: proc(current: ^TransitionData, target: ^TransitionData) -> bool {
+	if !floatEquals(current.boundingBox.x, target.boundingBox.x) ||
+	   !floatEquals(current.boundingBox.y, target.boundingBox.y) ||
+	   !floatEquals(current.boundingBox.width, target.boundingBox.width) ||
+	   !floatEquals(current.boundingBox.height, target.boundingBox.height) {
 		return true
 	}
 	if current.color != target.color {
 		return true
 	}
-	if current.overlay_color != target.overlay_color {
+	if current.overlayColor != target.overlayColor {
 		return true
 	}
 	return false
 }
 
 @(private = "file")
-float_equal :: proc(a, b: f32) -> bool {
-	if (a - b < 0.01 && a - b > -0.01) || (b - a < 0.01 && b - a > -0.01) {
-		return true
-	}
-	return false
-}
+cloneElementsWithExitTransition :: proc() {
+	nextIndex := s.layoutElements.cap - 1
+	nextChildIndex := s.layoutElementChildren.cap - 1
 
-@(private = "file")
-update_element_with_transition_data :: proc(
-	bounding_box: ^Bounding_Box,
-	layout_element: ^Layout_Element,
-	data: ^Transition_Data,
-) {
-	bounding_box^ = data.bounding_box
-	config := &(layout_element.config.(Element_Declaration))
-	config.color = data.color
-	config.overlay_color = data.overlay_color
-}
+	for &data in arrayIter(s.transitionDatas) {
+		config := &(data.elementThisFrame.config.(ElementDeclaration))
+		if data.transitionOut {
+			bfsBuffer := s.openLayoutElementStack
+			bfsBuffer.len = 0
+			newElement := arraySet(&s.layoutElements, nextIndex, data.elementThisFrame^)
+			arraySet(
+				&s.layoutElementIdStrings,
+				nextIndex,
+				arrayGet(
+					s.layoutElementIdStrings,
+					intrinsics.ptr_sub(data.elementThisFrame, &s.layoutElements.items[0]),
+				),
+			)
+			arrayPush(&bfsBuffer, nextIndex)
+			data.elementThisFrame = newElement
+			nextIndex -= 1
 
-@(private = "file")
-calculate_final_layout :: proc(delta_time: f32) {
-
-	for &transition_data in array_iter(s.transition_datas) {
-		element_idx := intrinsics.ptr_sub(
-			transition_data.element_this_frame,
-			&s.layout_elements.items[0],
-		)
-		if transition_data.state == .EXITING {
-			parent_map_item := get_hash_map_item(transition_data.parent_id)
-			parent_element := parent_map_item.layout_element
-			new_children_start_idx := s.layout_element_children.len
-			found := false
-			for i := 0; i < parent_element.children.len; i += 1 {
-				if u32(i) == transition_data.sibling_idx {
-					array_push(&s.layout_element_children, element_idx)
-					found = true
+			bufferIndex := 0
+			for bufferIndex < bfsBuffer.len {
+				layoutElement := arrayGetPtr(&s.layoutElements, arrayGet(bfsBuffer, bufferIndex))
+				bufferIndex += 1
+				for j := layoutElement.children.len - 1; j >= 0; j -= 1 {
+					childElement := arrayGetPtr(&s.layoutElements, layoutElement.children.items[j])
+					arrayPush(&bfsBuffer, nextIndex)
+					newChildElement := arraySet(&s.layoutElements, nextIndex, childElement^)
+					arraySet(
+						&s.layoutElementIdStrings,
+						nextIndex,
+						arrayGet(
+							s.layoutElementIdStrings,
+							intrinsics.ptr_sub(childElement, &s.layoutElements.items[0]),
+						),
+					)
+					arraySet(&s.layoutElementChildren, nextChildIndex, nextIndex)
+					nextIndex -= 1
+					nextChildIndex -= 1
 				}
-				array_push(&s.layout_element_children, parent_element.children.items[i])
+				layoutElement.children.items = s.layoutElementChildren.items[nextChildIndex + 1:]
 			}
-			if !found {
-				array_push(&s.layout_element_children, element_idx)
-			}
-			parent_element.children.len += 1
-			parent_element.children.items = s.layout_element_children.items[new_children_start_idx:]
-			parent_element.children.cap = s.layout_element_children.len - new_children_start_idx
 		}
 	}
+}
 
+@(private = "file")
+updateElementWithTransitionData :: proc(
+	boundingBox: ^BoundingBox,
+	layoutElement: ^LayoutElement,
+	data: ^TransitionData,
+) {
+	boundingBox^ = data.boundingBox
+	config := &(layoutElement.config.(ElementDeclaration))
+	config.backgroundColor = data.color
+	config.overlayColor = data.overlayColor
+}
+
+@(private = "file")
+calculateFinalLayout :: proc(
+	deltaTime: f32,
+	useStoredBoundingBoxes: bool,
+	generateRenderCommands: bool,
+) {
 
 	// calculate sizing along x axis
 	// using clip element stack as it's available
-	text_elements := s.open_clip_element_stack
-	text_elements.len = 0
-	aspect_ratio_elements := s.reusable_element_idx_buffer
-	aspect_ratio_elements.len = 0
-	size_containers_along_axis(true, &text_elements, &aspect_ratio_elements)
+	textElements := s.openClipElementStack
+	textElements.len = 0
+	aspectRatioElements := s.reusableElementIdxBuffer
+	aspectRatioElements.len = 0
+	sizeContainersAlongAxis(true, deltaTime, &textElements, &aspectRatioElements)
 
 	// Wrap text
 	// loop through each text element in the layout
-	for &text_element_idx in array_iter(text_elements) {
+	for &textElementIdx in arrayIter(textElements) {
 
-		// set the wrapped_lines array to the end of the state's wrapped_text_lines array
-		element := array_get_ptr(&s.layout_elements, text_element_idx)
-		text_element_data := &(&element.config.(Text_Declaration)).data
-		text_element_data.wrapped_lines.items = s.wrapped_text_lines.items[s.wrapped_text_lines.len:]
-		text_element_data.wrapped_lines.cap = s.wrapped_text_lines.cap - s.wrapped_text_lines.len
-		text_element_data.wrapped_lines.len = 0
+		// set the wrappedLines array to the end of the state's wrappedTextLines array
+		element := arrayGetPtr(&s.layoutElements, textElementIdx)
+		textElementData := &(&element.config.(TextDeclaration)).data
+		textElementData.wrappedLines.items = s.wrappedTextLines.items[s.wrappedTextLines.len:]
+		textElementData.wrappedLines.cap = s.wrappedTextLines.cap - s.wrappedTextLines.len
+		textElementData.wrappedLines.len = 0
 
 		// get the container and measure the text
-		container_element := array_get_ptr(&s.layout_elements, text_element_data.idx)
-		text_config := container_element.config.(Text_Declaration).config
+		containerElement := arrayGetPtr(&s.layoutElements, textElementIdx)
+		textConfig := containerElement.config.(TextDeclaration).config
 
-		measure_text_cache_item := measure_text_cached(text_element_data.text, text_config)
-		line_width: f32 = 0
-		line_height :=
-			text_config.line_height > 0 ? text_config.line_height : text_element_data.preferred_dimensions.y
-		line_length_chars := 0
-		line_start_offset := 0
+		measureTextCacheItem := measureTextCached(textElementData.text, textConfig)
+		lineWidth: f32 = 0
+		lineHeight :=
+			textConfig.lineHeight > 0 ? textConfig.lineHeight : textElementData.preferredDimensions.y
+		lineLengthChars := 0
+		lineStartOffset := 0
 
 		// There are no newlines in the item, and it fits inside the container
-		if !measure_text_cache_item.contains_new_lines &&
-		   text_element_data.preferred_dimensions.x <= container_element.dimensions.x {
-			array_push(
-				&s.wrapped_text_lines,
-				Wrapped_Text_Line {
-					dimensions = container_element.dimensions,
-					text = text_element_data.text,
+		if !measureTextCacheItem.containsNewLines &&
+		   textElementData.preferredDimensions.x <= containerElement.dimensions.x {
+			arrayPush(
+				&s.wrappedTextLines,
+				WrappedTextLine {
+					dimensions = containerElement.dimensions,
+					text = textElementData.text,
 				},
 			)
-			// We increment the lenth here because text_element_data.wrapped_lines is backed by the global store
-			text_element_data.wrapped_lines.len += 1
+			// We increment the lenth here because textElementData.wrappedLines is backed by the global store
+			textElementData.wrappedLines.len += 1
 			continue
 		}
-		space_width := s.measure_text(" ", text_config, s.measure_text_user_ptr).x
+		spaceWidth := s.measureText(" ", textConfig, s.measureTextUserPtr).x
 
-		// get the index of the cached measured_word for the first word
-		word_idx := measure_text_cache_item.measured_words_start_idx
-		for word_idx != -1 {
+		// get the index of the cached measuredWord for the first word
+		wordIdx := measureTextCacheItem.measuredWordsStartIdx
+		for wordIdx != -1 {
 			// Can't store any more wrapped text
-			if s.wrapped_text_lines.len > s.wrapped_text_lines.cap - 1 {
+			if s.wrappedTextLines.len > s.wrappedTextLines.cap - 1 {
 				break
 			}
-			measured_word := array_get_ptr(&s.measured_words, word_idx)
+			measuredWord := arrayGetPtr(&s.measuredWords, wordIdx)
 			// if the only word on the line is too large, render it anyway
-			if line_length_chars == 0 &&
-			   line_width + measured_word.width > container_element.dimensions.x {
-				// We push a wrapped line onto the global array, but the backing data is from text_element_data
-				array_push(
-					&s.wrapped_text_lines,
-					Wrapped_Text_Line {
-						dimensions = {measured_word.width, line_height},
+			if lineLengthChars == 0 &&
+			   lineWidth + measuredWord.width > containerElement.dimensions.x {
+				// We push a wrapped line onto the global array, but the backing data is from textElementData
+				arrayPush(
+					&s.wrappedTextLines,
+					WrappedTextLine {
+						dimensions = {measuredWord.width, lineHeight},
 						text = string(
-							text_element_data.text[measured_word.start_offset:][:measured_word.length],
+							textElementData.text[measuredWord.startOffset:][:measuredWord.length],
 						),
 					},
 				)
-				// increment wrapped_lines length since it is backed by the global array
-				text_element_data.wrapped_lines.len += 1
+				// increment wrappedLines length since it is backed by the global array
+				textElementData.wrappedLines.len += 1
 				// Move on to the next word
-				word_idx = measured_word.next
-				line_start_offset = measured_word.start_offset + measured_word.length
-				// measured_word.length == 0 means new line. (or the measured width is too large)
-			} else if measured_word.length == 0 ||
-			   line_width + measured_word.width > container_element.dimensions.x {
+				wordIdx = measuredWord.next
+				lineStartOffset = measuredWord.startOffset + measuredWord.length
+				// measuredWord.length == 0 means new line. (or the measured width is too large)
+			} else if measuredWord.length == 0 ||
+			   lineWidth + measuredWord.width > containerElement.dimensions.x {
 				// if wrapped text lines list has overflowed, just render out the line
-				final_char_is_space :=
-					text_element_data.text[max(line_start_offset + line_length_chars - 1, 0)] ==
-					' '
-				array_push(
-					&s.wrapped_text_lines,
-					Wrapped_Text_Line {
-						dimensions = {final_char_is_space ? -space_width : 0, line_height},
+				finalCharIsSpace :=
+					textElementData.text[max(lineStartOffset + lineLengthChars - 1, 0)] == ' '
+				arrayPush(
+					&s.wrappedTextLines,
+					WrappedTextLine {
+						dimensions = {
+							lineWidth + (finalCharIsSpace ? -spaceWidth : 0),
+							lineHeight,
+						},
 						text = string(
-							text_element_data.text[line_start_offset:][:line_length_chars +
-							(final_char_is_space ? -1 : 0)],
+							textElementData.text[lineStartOffset:][:lineLengthChars +
+							(finalCharIsSpace ? -1 : 0)],
 						),
 					},
 				)
-				text_element_data.wrapped_lines.len += 1
-				if line_length_chars == 0 || measured_word.length == 0 {
-					word_idx = measured_word.next
+				textElementData.wrappedLines.len += 1
+				if lineLengthChars == 0 || measuredWord.length == 0 {
+					wordIdx = measuredWord.next
 				}
 				// reset for new line
-				line_width = 0
-				line_length_chars = 0
-				line_start_offset = measured_word.start_offset
+				lineWidth = 0
+				lineLengthChars = 0
+				lineStartOffset = measuredWord.startOffset
 				// fits on the line
 			} else {
-				line_width += measured_word.width + text_config.spacing
-				line_length_chars += measured_word.length
-				word_idx = measured_word.next
+				lineWidth += measuredWord.width + textConfig.spacing
+				lineLengthChars += measuredWord.length
+				wordIdx = measuredWord.next
 			}
 		}
 		// push the remaining characters
-		if line_length_chars > 0 {
-			array_push(
-				&s.wrapped_text_lines,
-				Wrapped_Text_Line {
-					dimensions = {line_width - text_config.spacing, line_height},
-					text = text_element_data.text[line_start_offset:line_start_offset +
-					line_length_chars],
+		if lineLengthChars > 0 {
+			arrayPush(
+				&s.wrappedTextLines,
+				WrappedTextLine {
+					dimensions = {lineWidth - textConfig.spacing, lineHeight},
+					text = textElementData.text[lineStartOffset:lineStartOffset + lineLengthChars],
 				},
 			)
-			text_element_data.wrapped_lines.len += 1
+			textElementData.wrappedLines.len += 1
 		}
-		container_element.dimensions.y = line_height * f32(text_element_data.wrapped_lines.len)
+		containerElement.dimensions.y = lineHeight * f32(textElementData.wrappedLines.len)
 	}
 
 	// scale vertical heights according to aspect ratio
-	for aspect_ratio_element_idx in array_iter(aspect_ratio_elements) {
-		aspect_element := array_get_ptr(&s.layout_elements, aspect_ratio_element_idx)
-		config := &aspect_element.config.(Element_Declaration)
-		aspect_element.dimensions.y = f32(1.0 / config.aspect_ratio) * aspect_element.dimensions.x
-		min_max_sizing := &config.layout.sizing.height.value.(Sizing_Min_Max)
-		min_max_sizing.max = aspect_element.dimensions.y
+	for aspectRatioElementIdx in arrayIter(aspectRatioElements) {
+		aspectElement := arrayGetPtr(&s.layoutElements, aspectRatioElementIdx)
+		config := &aspectElement.config.(ElementDeclaration)
+		aspectElement.dimensions.y = f32(1.0 / config.aspectRatio) * aspectElement.dimensions.x
+		minMaxSizing := &config.layout.sizing.height.value.(SizingMinMax)
+		minMaxSizing.max = aspectElement.dimensions.y
 	}
 
 	// propagate effect of text wrapping, aspect scalign etc. on height of parents
-	dfs_buffer := s.layout_element_tree_nodes
-	dfs_buffer.len = 0
+	dfsBuffer := s.layoutElementTreeNodes
+	dfsBuffer.len = 0
 	// For each tree root in the layout, add it into a depth first search buffer
-	for root in array_iter(s.layout_element_tree_roots) {
-		s.tree_node_visited.items[dfs_buffer.len] = false
-		array_push(
-			&dfs_buffer,
-			Layout_Element_Tree_Node {
-				layout_element = array_get_ptr(&s.layout_elements, root.layout_element_idx),
+	for root in arrayIter(s.layoutElementTreeRoots) {
+		s.treeNodeVisited.items[dfsBuffer.len] = false
+		arrayPush(
+			&dfsBuffer,
+			LayoutElementTreeNode {
+				layoutElement = arrayGetPtr(&s.layoutElements, root.layoutElementIdx),
 			},
 		)
 	}
 	// Keep processing until the buffer is empty
-	for dfs_buffer.len > 0 {
+	for dfsBuffer.len > 0 {
 		// peek
-		current_element_tree_node := array_get_ptr(&dfs_buffer, dfs_buffer.len - 1)
-		current_element := current_element_tree_node.layout_element
-		if !s.tree_node_visited.items[dfs_buffer.len - 1] {
-			s.tree_node_visited.items[dfs_buffer.len - 1] = true
+		currentElementTreeNode := arrayGetPtr(&dfsBuffer, dfsBuffer.len - 1)
+		currentElement := currentElementTreeNode.layoutElement
+		if !s.treeNodeVisited.items[dfsBuffer.len - 1] {
+			s.treeNodeVisited.items[dfsBuffer.len - 1] = true
 			// if it's got no children or is just a text container then don't bother inspecting
-			if _, is_text := current_element.config.(Text_Declaration);
-			   is_text || current_element.children.len == 0 {
-				dfs_buffer.len -= 1
+			if _, isText := currentElement.config.(TextDeclaration);
+			   isText || currentElement.children.len == 0 {
+				dfsBuffer.len -= 1
 				continue
 			}
 			// add the children to the DFS buffer (needs to be pushed in reverse so the that the stack traversal is in correct layout order)
-			for child_idx in array_iter(current_element.children) {
-				s.tree_node_visited.items[dfs_buffer.len] = false
-				array_push(
-					&dfs_buffer,
-					Layout_Element_Tree_Node {
-						layout_element = array_get_ptr(&s.layout_elements, child_idx),
+			for childIdx in arrayIter(currentElement.children) {
+				s.treeNodeVisited.items[dfsBuffer.len] = false
+				arrayPush(
+					&dfsBuffer,
+					LayoutElementTreeNode {
+						layoutElement = arrayGetPtr(&s.layoutElements, childIdx),
 					},
 				)
 			}
 			continue
 		}
-		dfs_buffer.len -= 1
+		dfsBuffer.len -= 1
 		// DFS node has been visited, this is on the way back up to the root
-		layout_config := current_element.config.(Element_Declaration).layout
-		if layout_config.direction == .LEFT_TO_RIGHT {
+		layoutConfig := currentElement.config.(ElementDeclaration).layout
+		if layoutConfig.direction == .LEFT_TO_RIGHT {
 			// resize any parent containers that have grown in height along their non layout axis
-			for &child_idx in array_iter(current_element.children) {
-				child_element := array_get_ptr(&s.layout_elements, child_idx)
-				child_height_with_padding := max(
-					child_element.dimensions.y +
-					layout_config.padding.top +
-					layout_config.padding.bottom,
-					current_element.dimensions.y,
+			for &childIdx in arrayIter(currentElement.children) {
+				childElement := arrayGetPtr(&s.layoutElements, childIdx)
+				childHeightWithPadding := max(
+					childElement.dimensions.y +
+					layoutConfig.padding.top +
+					layoutConfig.padding.bottom,
+					currentElement.dimensions.y,
 				)
-				current_element.dimensions.y = min(
+				currentElement.dimensions.y = min(
 					max(
-						child_height_with_padding,
-						layout_config.sizing.height.value.(Sizing_Min_Max).min,
+						childHeightWithPadding,
+						layoutConfig.sizing.height.value.(SizingMinMax).min,
 					),
-					layout_config.sizing.height.value.(Sizing_Min_Max).max,
+					layoutConfig.sizing.height.value.(SizingMinMax).max,
 				)
 			}
-		} else if layout_config.direction == .TOP_TO_BOTTOM {
+		} else if layoutConfig.direction == .TOP_TO_BOTTOM {
 			// resizing along the layout axis
-			content_height := layout_config.padding.top + layout_config.padding.bottom
-			for child_idx in array_iter(current_element.children) {
-				child_element := array_get_ptr(&s.layout_elements, child_idx)
-				content_height += child_element.dimensions.y
+			contentHeight := layoutConfig.padding.top + layoutConfig.padding.bottom
+			for childIdx in arrayIter(currentElement.children) {
+				childElement := arrayGetPtr(&s.layoutElements, childIdx)
+				contentHeight += childElement.dimensions.y
 			}
-			content_height +=
-				f32(max(current_element.children.len - 1, 0)) * layout_config.child_gap
-			current_element.dimensions.y = min(
-				max(content_height, layout_config.sizing.height.value.(Sizing_Min_Max).min),
-				layout_config.sizing.height.value.(Sizing_Min_Max).max,
+			contentHeight += f32(max(currentElement.children.len - 1, 0)) * layoutConfig.childGap
+			currentElement.dimensions.y = min(
+				max(contentHeight, layoutConfig.sizing.height.value.(SizingMinMax).min),
+				layoutConfig.sizing.height.value.(SizingMinMax).max,
 			)
 		}
 	}
 	// calculate sizing along y axis
-	size_containers_along_axis(false, nil, nil)
+	sizeContainersAlongAxis(false, deltaTime, nil, nil)
 
 	// scale horizontal widths according to aspect ratio
-	for aspect_idx in array_iter(aspect_ratio_elements) {
-		aspect_element := array_get_ptr(&s.layout_elements, aspect_idx)
-		aspect_element.dimensions.x =
-			f32(aspect_element.config.(Element_Declaration).aspect_ratio) *
-			aspect_element.dimensions.y
+	for aspectIdx in arrayIter(aspectRatioElements) {
+		aspectElement := arrayGetPtr(&s.layoutElements, aspectIdx)
+		aspectElement.dimensions.x =
+			f32(aspectElement.config.(ElementDeclaration).aspectRatio) * aspectElement.dimensions.y
 	}
 
 	// sort tree roots by z-index
-	sort_max := s.layout_element_tree_roots.len - 1
-	for sort_max > 0 {
-		for i := 0; i < sort_max; i += 1 {
-			current := array_get(s.layout_element_tree_roots, i)
-			next := array_get(s.layout_element_tree_roots, i + 1)
-			if next.z_idx < current.z_idx {
-				array_set(&s.layout_element_tree_roots, i, next)
-				array_set(&s.layout_element_tree_roots, i + 1, current)
+	sortMax := s.layoutElementTreeRoots.len - 1
+	for sortMax > 0 {
+		for i := 0; i < sortMax; i += 1 {
+			current := arrayGet(s.layoutElementTreeRoots, i)
+			next := arrayGet(s.layoutElementTreeRoots, i + 1)
+			if next.zIdx < current.zIdx {
+				arraySet(&s.layoutElementTreeRoots, i, next)
+				arraySet(&s.layoutElementTreeRoots, i + 1, current)
 			}
 		}
-		sort_max -= 1
+		sortMax -= 1
 	}
 
 	// Calculate final positions and generate render commands
-	s.render_commands.len = 0
-	dfs_buffer.len = 0
-	for &root in array_iter(s.layout_element_tree_roots) {
-		dfs_buffer.len = 0
-		root_element := array_get_ptr(&s.layout_elements, root.layout_element_idx)
-		root_config, is_layout := root_element.config.(Element_Declaration)
-		root_position: [2]f32
-		parent_hash_map_item := get_hash_map_item(root.parent_id)
-		if is_layout && root_config.floating.attach_to != .NONE && parent_hash_map_item != nil {
-			config := root_config.floating
-			root_dimensions := root_element.dimensions
-			parent_bounding_box := parent_hash_map_item.bounding_box
-			target_attach_position: [2]f32
-			switch config.attach_points.parent {
+	s.renderCommands.len = 0
+	dfsBuffer.len = 0
+	for &root in arrayIter(s.layoutElementTreeRoots) {
+		dfsBuffer.len = 0
+		rootElement := arrayGetPtr(&s.layoutElements, root.layoutElementIdx)
+		rootConfig, isLayout := rootElement.config.(ElementDeclaration)
+		rootPosition: [2]f32
+		parentHashMapItem := getHashMapItem(root.parentId)
+		if isLayout && rootConfig.floating.attachTo != .NONE && parentHashMapItem != nil {
+			config := rootConfig.floating
+			rootDimensions := rootElement.dimensions
+			parentBoundingBox := parentHashMapItem.boundingBox
+			targetAttachPosition: [2]f32
+			switch config.attachPoints.parent {
 			case .LEFT_TOP, .LEFT_CENTER, .LEFT_BOTTOM:
-				target_attach_position.x = parent_bounding_box.x
+				targetAttachPosition.x = parentBoundingBox.x
 			case .CENTER_TOP, .CENTER_CENTER, .CENTER_BOTTOM:
-				target_attach_position.x =
-					parent_bounding_box.x + (parent_bounding_box.width / 2.0)
+				targetAttachPosition.x = parentBoundingBox.x + (parentBoundingBox.width / 2.0)
 			case .RIGHT_TOP, .RIGHT_CENTER, .RIGHT_BOTTOM:
-				target_attach_position.x = parent_bounding_box.x + parent_bounding_box.width
+				targetAttachPosition.x = parentBoundingBox.x + parentBoundingBox.width
 			}
-			#partial switch config.attach_points.element {
+			#partial switch config.attachPoints.element {
 			case .CENTER_TOP, .CENTER_CENTER, .CENTER_BOTTOM:
-				target_attach_position.x -= root_dimensions.x / 2.0
+				targetAttachPosition.x -= rootDimensions.x / 2.0
 			case .RIGHT_TOP, .RIGHT_CENTER, .RIGHT_BOTTOM:
-				target_attach_position.x -= root_dimensions.x
+				targetAttachPosition.x -= rootDimensions.x
 			}
-			switch config.attach_points.parent {
+			switch config.attachPoints.parent {
 			case .LEFT_TOP, .RIGHT_TOP, .CENTER_TOP:
-				target_attach_position.y = parent_bounding_box.y
+				targetAttachPosition.y = parentBoundingBox.y
 			case .LEFT_CENTER, .CENTER_CENTER, .RIGHT_CENTER:
-				target_attach_position.y =
-					parent_bounding_box.y + (parent_bounding_box.height / 2.0)
+				targetAttachPosition.y = parentBoundingBox.y + (parentBoundingBox.height / 2.0)
 			case .LEFT_BOTTOM, .CENTER_BOTTOM, .RIGHT_BOTTOM:
-				target_attach_position.y = parent_bounding_box.y + parent_bounding_box.height
+				targetAttachPosition.y = parentBoundingBox.y + parentBoundingBox.height
 			}
-			#partial switch config.attach_points.element {
+			#partial switch config.attachPoints.element {
 			case .LEFT_CENTER, .CENTER_CENTER, .RIGHT_CENTER:
-				target_attach_position.y -= (root_dimensions.y / 2.0)
+				targetAttachPosition.y -= (rootDimensions.y / 2.0)
 			case .LEFT_BOTTOM, .CENTER_BOTTOM, .RIGHT_BOTTOM:
-				target_attach_position.y -= root_dimensions.y
+				targetAttachPosition.y -= rootDimensions.y
 			}
-			target_attach_position.x += config.offset.x
-			target_attach_position.y += config.offset.y
-			root_position = target_attach_position
+			targetAttachPosition.x += config.offset.x
+			targetAttachPosition.y += config.offset.y
+			rootPosition = targetAttachPosition
 		}
-		if root.clip_element_id != 0 {
-			clip_hash_map_item := get_hash_map_item(root.clip_element_id)
-			if clip_hash_map_item != nil &&
-			   !element_is_offscreen(&clip_hash_map_item.bounding_box) {
-				if s.external_scroll_handling_enabled {
-					clip_config :=
-						clip_hash_map_item.layout_element.config.(Element_Declaration).clip
-					if clip_config.horizontal {
-						root_position.x += clip_config.child_offset.x
+		if root.clipElementId != 0 {
+			clipHashMapItem := getHashMapItem(root.clipElementId)
+			if clipHashMapItem != nil && !elementIsOffscreen(&clipHashMapItem.boundingBox) {
+				if s.externalScrollHandlingEnabled {
+					clipConfig := clipHashMapItem.layoutElement.config.(ElementDeclaration).clip
+					if clipConfig.horizontal {
+						rootPosition.x += clipConfig.childOffset.x
 					}
-					if clip_config.vertical {
-						root_position.y += clip_config.child_offset.y
+					if clipConfig.vertical {
+						rootPosition.y += clipConfig.childOffset.y
 					}
 				}
-				array_push(
-					&s.render_commands,
-					Render_Command {
-						bounding_box = clip_hash_map_item.bounding_box,
-						user_ptr = nil,
-						id = hash_number(root_element.id, u32(root_element.children.len) + 10).id,
-						z_idx = root.z_idx,
-						type = .SCISSOR_START,
-					},
-				)
+				if generateRenderCommands {
+					pushRenderCommand(
+						RenderCommand {
+							boundingBox = clipHashMapItem.boundingBox,
+							userPtr = nil,
+							id = hashNumber(rootElement.id, u32(rootElement.children.len) + 10).id,
+							zIdx = root.zIdx,
+							type = .SCISSOR_START,
+						},
+					)
+				}
 			}
 		}
-		array_push(
-			&dfs_buffer,
-			Layout_Element_Tree_Node {
-				layout_element = root_element,
-				position = root_position,
-				next_child_offset = {
-					root_config.layout.padding.left,
-					root_config.layout.padding.top,
-				},
+		arrayPush(
+			&dfsBuffer,
+			LayoutElementTreeNode {
+				layoutElement = rootElement,
+				position = rootPosition,
+				nextChildOffset = {rootConfig.layout.padding.left, rootConfig.layout.padding.top},
 			},
 		)
-		s.tree_node_visited.items[0] = false
-		for dfs_buffer.len > 0 {
-			current_element_tree_node := array_get_ptr(&dfs_buffer, dfs_buffer.len - 1)
-			current_element := current_element_tree_node.layout_element
-			config, is_layout := &(current_element.config.(Element_Declaration))
-			scroll_offset: [2]f32
+		s.treeNodeVisited.items[0] = false
+		for dfsBuffer.len > 0 {
+			currentElementTreeNode := arrayGetPtr(&dfsBuffer, dfsBuffer.len - 1)
+			currentElement := currentElementTreeNode.layoutElement
+			config, isLayout := &(currentElement.config.(ElementDeclaration))
+			scrollOffset: [2]f32
 
-			// This will only be run a single time for each element in downwards DFS order
-			if !s.tree_node_visited.items[dfs_buffer.len - 1] {
-				s.tree_node_visited.items[dfs_buffer.len - 1] = true
-				current_element_bounding_box := Bounding_Box {
-					current_element_tree_node.position.x,
-					current_element_tree_node.position.y,
-					current_element.dimensions.x,
-					current_element.dimensions.y,
+			// DFS is returning back upwards
+			if s.treeNodeVisited.items[dfsBuffer.len - 1] {
+				if !isLayout {
+					dfsBuffer.len -= 1
+					continue
 				}
-				if is_layout && config.floating.attach_to != .NONE {
-					expand := config.floating.expand
-					current_element_bounding_box.x -= expand.x
-					current_element_bounding_box.width += expand.x * 2.0
-					current_element_bounding_box.y -= expand.y
-					current_element_bounding_box.height += expand.y * 2.0
-				}
-				scroll_container_data: ^Scroll_Container_Data_Internal
-				if is_layout && (config.clip.horizontal || config.clip.vertical) {
-					for &mapping in array_iter(s.scroll_container_datas) {
-						if mapping.layout_element == current_element {
-							scroll_container_data = &mapping
-							mapping.bounding_box = current_element_bounding_box
-							scroll_offset = config.clip.child_offset
-							if s.external_scroll_handling_enabled {
-								scroll_offset = {}
+
+
+				currentElementData := getHashMapItem(currentElement.id)
+				if generateRenderCommands && !elementIsOffscreen(&currentElementData.boundingBox) {
+					closeClipElement := false
+					if isLayout && (config.clip.horizontal || config.clip.vertical) {
+						closeClipElement = true
+						for &mapping in arrayIter(s.scrollContainerDatas) {
+							if mapping.layoutElement == currentElement {
+								scrollOffset = config.clip.childOffset
+								if s.externalScrollHandlingEnabled {
+									scrollOffset = {}
+								}
+								break
 							}
-							break
 						}
 					}
-				}
-
-				if is_layout && config.transition.handler != nil {
-					for i := 0; i < s.transition_datas.len; i += 1 {
-						transition_data := array_get_ptr(&s.transition_datas, i)
-						if transition_data.element_this_frame == current_element {
-							current_transition_data := transition_data.current_state
-							target_transition_data := create_transition_data_for_element(
-								&current_element_bounding_box,
-								current_element,
-							)
-
-							if transition_data.state == .ENTERING {
-								if config.transition.on_begin_enter == nil {
-									transition_data.state = .IDLE
-									transition_data.initial_state = target_transition_data
-									transition_data.current_state = target_transition_data
-								} else {
-									transition_data.initial_state =
-										config.transition.on_begin_enter(target_transition_data)
-									transition_data.current_state = transition_data.initial_state
-									transition_data.target_state = target_transition_data
-									transition_data.state = .TRANSITIONING
-									update_element_with_transition_data(
-										&current_element_bounding_box,
-										current_element,
-										&transition_data.initial_state,
-									)
+					if isLayout && borderHasAnyWidth(&config.border) {
+						pushRenderCommand(
+							{
+								boundingBox = currentElementData.boundingBox,
+								renderData = BorderRenderData {
+									color = config.border.color,
+									cornerRadius = config.cornerRadius,
+									width = config.border.width,
+								},
+								userPtr = config.userPtr,
+								id = hashNumber(currentElement.id, u32(currentElement.children.len)).id,
+								type = .BORDER,
+							},
+						)
+						if config.border.width.betweenChildren > 0 && config.border.color.a > 0 {
+							halfGap := config.layout.childGap / 2.0
+							halfWidth := config.border.width.betweenChildren / 2.0
+							borderOffset := [2]f32 {
+								config.layout.padding.left - halfGap,
+								config.layout.padding.top - halfGap,
+							}
+							if config.layout.direction == .LEFT_TO_RIGHT {
+								for childIdx, idx in arrayIter(currentElement.children) {
+									childElement := arrayGetPtr(&s.layoutElements, childIdx)
+									if idx > 0 {
+										pushRenderCommand(
+											{
+												boundingBox = {
+													currentElementData.boundingBox.x +
+													borderOffset.x +
+													scrollOffset.x -
+													halfWidth,
+													currentElementData.boundingBox.y +
+													scrollOffset.y,
+													config.border.width.betweenChildren,
+													currentElement.dimensions.y,
+												},
+												renderData = RectangleRenderData {
+													color = config.border.color,
+												},
+												userPtr = config.userPtr,
+												id = hashNumber(currentElement.id, u32(currentElement.children.len + 1 + idx)).id,
+												type = .RECTANGLE,
+											},
+										)
+									}
+									borderOffset.x +=
+										childElement.dimensions.x + config.layout.childGap
 								}
 							} else {
-								if transition_data.state == .EXITING {
-									target_transition_data = transition_data.target_state
-								}
-								if should_transition(
-									&transition_data.target_state,
-									&target_transition_data,
-								) {
-									transition_data.elapsed_time = 0
-									transition_data.initial_state = transition_data.current_state
-									transition_data.target_state = target_transition_data
-									transition_data.state = .TRANSITIONING
-								}
-
-								transition_complete := config.transition.handler(
-									Transition_Callback_Arguments {
-										state = transition_data.state,
-										initial = transition_data.initial_state,
-										current = &current_transition_data,
-										target = target_transition_data,
-										elapsed_time = transition_data.elapsed_time,
-										duration = config.transition.duration,
-										properties = config.transition.properties,
-									},
-								)
-								scroll_offset.x +=
-									current_transition_data.bounding_box.x -
-									current_element_bounding_box.x
-								scroll_offset.y +=
-									current_transition_data.bounding_box.y -
-									current_element_bounding_box.y
-
-								if !transition_complete {
-									update_element_with_transition_data(
-										&current_element_bounding_box,
-										current_element,
-										&current_transition_data,
-									)
-									current_element_bounding_box =
-										current_transition_data.bounding_box
-									transition_data.elapsed_time += delta_time
-									transition_data.current_state = current_transition_data
-								} else {
-									if transition_data.state == .TRANSITIONING {
-										transition_data.state = .IDLE
-										transition_data.initial_state = target_transition_data
-										transition_data.current_state = target_transition_data
-										transition_data.elapsed_time = 0
-									} else if transition_data.state == .EXITING {
-										array_swapback(&s.transition_datas, i)
-										i -= 1
-										continue
+								for childIdx, idx in arrayIter(currentElement.children) {
+									childElement := arrayGetPtr(&s.layoutElements, childIdx)
+									if idx > 0 {
+										pushRenderCommand(
+											{
+												boundingBox = {
+													currentElementData.boundingBox.x +
+													scrollOffset.x,
+													currentElementData.boundingBox.y +
+													borderOffset.y +
+													scrollOffset.y -
+													halfWidth,
+													currentElement.dimensions.x,
+													config.border.width.betweenChildren,
+												},
+												renderData = RectangleRenderData {
+													color = config.border.color,
+												},
+												userPtr = config.userPtr,
+												id = hashNumber(currentElement.id, u32(currentElement.children.len + 1 + idx)).id,
+												type = .RECTANGLE,
+											},
+										)
 									}
+									borderOffset.y +=
+										childElement.dimensions.y + config.layout.childGap
 								}
 							}
 						}
 					}
+					if isLayout && config.overlayColor.a > 0 {
+						pushRenderCommand(
+							{
+								userPtr = config.userPtr,
+								id = currentElement.id,
+								zIdx = root.zIdx,
+								type = .COLOR_OVERLAY_END,
+							},
+						)
+					}
+					if closeClipElement {
+						pushRenderCommand(
+							{
+								id = hashNumber(currentElement.id, u32(rootElement.children.len + 11)).id,
+								type = .SCISSOR_END,
+							},
+						)
+					}
 				}
-				hash_map_item := get_hash_map_item(current_element.id)
-				if hash_map_item != nil {
-					hash_map_item.bounding_box = current_element_bounding_box
+				dfsBuffer.len -= 1
+				continue
+			}
+
+			// This will only be run a single time for each element in downwards DFS order
+			s.treeNodeVisited.items[dfsBuffer.len - 1] = true
+			currentElementBoundingBox := BoundingBox {
+				currentElementTreeNode.position.x,
+				currentElementTreeNode.position.y,
+				currentElement.dimensions.x,
+				currentElement.dimensions.y,
+			}
+			found := false
+			if isLayout && useStoredBoundingBoxes && config.transition.handler != nil {
+				for &transitionData in arrayIter(s.transitionDatas) {
+					if (transitionData.elementId == currentElement.id) {
+						found = true
+						if (transitionData.state != .IDLE) {
+							if TransitionProperty.X in config.transition.properties {
+								currentElementBoundingBox.x =
+									transitionData.currentState.boundingBox.x
+							}
+							if TransitionProperty.Y in config.transition.properties {
+								currentElementBoundingBox.y =
+									transitionData.currentState.boundingBox.y
+							}
+							if TransitionProperty.WIDTH in config.transition.properties {
+								currentElementBoundingBox.width =
+									transitionData.currentState.boundingBox.width
+							}
+							if TransitionProperty.HEIGHT in config.transition.properties {
+								currentElementBoundingBox.height =
+									transitionData.currentState.boundingBox.height
+							}
+						}
+						break
+					}
 				}
+				// An exiting element that completed its transition this frame - skip tree
+				if !found {
+					dfsBuffer.len -= 1
+					continue
+				}
+			}
+			if isLayout && config.floating.attachTo != .NONE {
+				expand := config.floating.expand
+				currentElementBoundingBox.x -= expand.x
+				currentElementBoundingBox.width += expand.x * 2.0
+				currentElementBoundingBox.y -= expand.y
+				currentElementBoundingBox.height += expand.y * 2.0
+			}
+			scrollContainerData: ^ScrollContainerDataInternal
+			if isLayout && (config.clip.horizontal || config.clip.vertical) {
+				for &mapping in arrayIter(s.scrollContainerDatas) {
+					if mapping.layoutElement == currentElement {
+						scrollContainerData = &mapping
+						mapping.boundingBox = currentElementBoundingBox
+						scrollOffset = config.clip.childOffset
+						if s.externalScrollHandlingEnabled {
+							scrollOffset = {}
+						}
+						break
+					}
+				}
+			}
 
+			offscreen := elementIsOffscreen(&currentElementBoundingBox)
 
-				offscreen := element_is_offscreen(&current_element_bounding_box)
+			if generateRenderCommands && !offscreen {
 
-				if text_config, is_text := current_element.config.(Text_Declaration);
-				   !offscreen && is_text {
-					natural_line_height := text_config.data.preferred_dimensions.y
-					final_line_height :=
-						text_config.config.line_height > 0 ? text_config.config.line_height : natural_line_height
-					line_height_offset := (final_line_height - natural_line_height) / 2.0
-					y_pos := line_height_offset
-					for line, line_idx in array_iter(text_config.data.wrapped_lines) {
+				if textConfig, isText := &currentElement.config.(TextDeclaration); isText {
+					naturalLineHeight := textConfig.data.preferredDimensions.y
+					finalLineHeight :=
+						textConfig.config.lineHeight > 0 ? textConfig.config.lineHeight : naturalLineHeight
+					lineHeightOffset := (finalLineHeight - naturalLineHeight) / 2.0
+					yPos := lineHeightOffset
+					for line, lineIdx in arrayIter(textConfig.data.wrappedLines) {
 						if len(line.text) == 0 {
-							y_pos += final_line_height
+							yPos += finalLineHeight
 							continue
 						}
-						offset := current_element_bounding_box.width - line.dimensions.x
-						if text_config.config.alignment == .LEFT {
+						offset := currentElementBoundingBox.width - line.dimensions.x
+						if textConfig.config.alignment == .LEFT {
 							offset = 0
 						}
-						if text_config.config.alignment == .CENTER {
+						if textConfig.config.alignment == .CENTER {
 							offset /= 2
 						}
-						push_render_command(
+						pushRenderCommand(
 							{
-								bounding_box = {
-									current_element_bounding_box.x + offset,
-									current_element_bounding_box.y + y_pos,
+								boundingBox = {
+									currentElementBoundingBox.x + offset,
+									currentElementBoundingBox.y + yPos,
 									line.dimensions.x,
 									line.dimensions.y,
 								},
-								render_data = Text_Render_Data {
+								renderData = TextRenderData {
 									text = line.text,
-									color = text_config.config.text_color,
-									font_id = text_config.config.font_id,
-									font_size = text_config.config.font_size,
-									spacing = text_config.config.spacing,
-									line_height = text_config.config.line_height,
+									color = textConfig.config.textColor,
+									fontId = textConfig.config.fontId,
+									fontSize = textConfig.config.fontSize,
+									spacing = textConfig.config.spacing,
+									lineHeight = textConfig.config.lineHeight,
 								},
-								user_ptr = text_config.config.user_ptr,
-								id = hash_number(u32(line_idx), current_element.id).id,
-								z_idx = root.z_idx,
+								userPtr = textConfig.config.userPtr,
+								id = hashNumber(u32(lineIdx), currentElement.id).id,
+								zIdx = root.zIdx,
 								type = .TEXT,
 							},
 						)
-						y_pos += final_line_height
+						yPos += finalLineHeight
 
-						if !s.disable_culling &&
-						   current_element_bounding_box.y + y_pos > s.layout_dimensions.y {
+						if !s.disableCulling &&
+						   currentElementBoundingBox.y + yPos > s.layoutDimensions.y {
 							break
 						}
 					}
-				} else if !offscreen {
-					if config.overlay_color.a > 0 {
-						push_render_command(
+				} else {
+					if config.overlayColor.a > 0 {
+						pushRenderCommand(
 							{
-								render_data = Color_Overlay_Render_Data(config.overlay_color),
-								user_ptr = config.user_ptr,
-								id = current_element.id,
-								z_idx = root.z_idx,
+								renderData = OverlayColorRenderData(config.overlayColor),
+								userPtr = config.userPtr,
+								id = currentElement.id,
+								zIdx = root.zIdx,
 								type = .COLOR_OVERLAY_START,
 							},
 						)
 					}
 					if config.image != nil {
-						push_render_command(
+						pushRenderCommand(
 							{
-								bounding_box = current_element_bounding_box,
-								render_data = Image_Render_Data {
-									color = config.color,
-									corner_radius = config.corner_radius,
+								boundingBox = currentElementBoundingBox,
+								renderData = ImageRenderData {
+									color = config.backgroundColor,
+									cornerRadius = config.cornerRadius,
 									data = config.image,
 								},
-								user_ptr = config.user_ptr,
-								id = current_element.id,
-								z_idx = root.z_idx,
+								userPtr = config.userPtr,
+								id = currentElement.id,
+								zIdx = root.zIdx,
 								type = .IMAGE,
 							},
 						)
 					}
 					if config.custom != nil {
-						push_render_command(
+						pushRenderCommand(
 							{
-								bounding_box = current_element_bounding_box,
-								render_data = Custom_Render_Data {
-									color = config.color,
-									corner_radius = config.corner_radius,
+								boundingBox = currentElementBoundingBox,
+								renderData = CustomRenderData {
+									color = config.backgroundColor,
+									cornerRadius = config.cornerRadius,
 									data = config.custom,
 								},
-								user_ptr = config.user_ptr,
-								id = current_element.id,
-								z_idx = root.z_idx,
+								userPtr = config.userPtr,
+								id = currentElement.id,
+								zIdx = root.zIdx,
 								type = .CUSTOM,
 							},
 						)
 					}
 					if config.clip.horizontal || config.clip.vertical {
-						push_render_command(
+
+						pushRenderCommand(
 							{
-								bounding_box = current_element_bounding_box,
-								render_data = Clip_Render_Data {
+								boundingBox = currentElementBoundingBox,
+								renderData = ClipRenderData {
 									horizontal = config.clip.horizontal,
 									vertical = config.clip.vertical,
 								},
-								user_ptr = config.user_ptr,
-								id = current_element.id,
-								z_idx = root.z_idx,
+								userPtr = config.userPtr,
+								id = currentElement.id,
+								zIdx = root.zIdx,
 								type = .SCISSOR_START,
 							},
 						)
 					}
-					if config.color.a > 0 {
-						push_render_command(
+					if config.backgroundColor.a > 0 {
+						pushRenderCommand(
 							{
-								bounding_box = current_element_bounding_box,
-								render_data = Rectangle_Render_Data {
-									color = config.color,
-									corner_radius = config.corner_radius,
+								boundingBox = currentElementBoundingBox,
+								renderData = RectangleRenderData {
+									color = config.backgroundColor,
+									cornerRadius = config.cornerRadius,
 								},
-								user_ptr = config.user_ptr,
-								id = current_element.id,
-								z_idx = root.z_idx,
+								userPtr = config.userPtr,
+								id = currentElement.id,
+								zIdx = root.zIdx,
 								type = .RECTANGLE,
 							},
 						)
 					}
 				}
+			}
 
-				// Setup initial on-axis alignment
-				if is_layout { 	// either layout or text
-					content_size := [2]f32{0, 0}
-					if config.layout.direction == .LEFT_TO_RIGHT {
-						for child_idx in array_iter(current_element.children) {
-							child_element := array_get_ptr(&s.layout_elements, child_idx)
-							content_size.x += child_element.dimensions.x
-							content_size.y = max(content_size.y, child_element.dimensions.y)
-						}
-						content_size.x +=
-							f32(max(current_element.children.len - 1, 0)) * config.layout.child_gap
-						extra_space :=
-							current_element.dimensions.x -
-							config.layout.padding.left -
-							config.layout.padding.right -
-							content_size.x
-						#partial switch config.layout.child_alignment.x {
-						case .LEFT:
-							extra_space = 0
-						case .CENTER:
-							extra_space /= 2
-						}
-						extra_space = max(0, extra_space)
-						current_element_tree_node.next_child_offset.x += extra_space
-					} else {
-						for child_idx in array_iter(current_element.children) {
-							child_element := array_get_ptr(&s.layout_elements, child_idx)
-							content_size.x = max(content_size.x, child_element.dimensions.x)
-							content_size.y += child_element.dimensions.y
-						}
-						content_size.y +=
-							f32(max(current_element.children.len - 1, 0)) * config.layout.child_gap
-						extra_space :=
-							current_element.dimensions.y -
-							config.layout.padding.top -
-							config.layout.padding.bottom -
-							content_size.y
-						#partial switch config.layout.child_alignment.y {
-						case .TOP:
-							extra_space = 0
-						case .CENTER:
-							extra_space /= 2
-						}
-						extra_space = max(0, extra_space)
-						current_element_tree_node.next_child_offset.y += extra_space
+			hashMapItem := getHashMapItem(currentElement.id)
+			hashMapItem.boundingBox = currentElementBoundingBox
+
+			if !isLayout {continue}
+
+			// Setup initial on-axis alignment
+			contentSizeCurrent := [2]f32{0, 0}
+			if config.layout.direction == .LEFT_TO_RIGHT {
+				for childIdx in arrayIter(currentElement.children) {
+					childElement := arrayGetPtr(&s.layoutElements, childIdx)
+					if childElement.exiting {continue}
+
+					contentSizeCurrent.x += childElement.dimensions.x
+					contentSizeCurrent.y = max(contentSizeCurrent.y, childElement.dimensions.y)
+				}
+				contentSizeCurrent.x +=
+					f32(max(currentElement.children.len - 1, 0)) * config.layout.childGap
+				extraSpace :=
+					currentElement.dimensions.x -
+					config.layout.padding.left -
+					config.layout.padding.right -
+					contentSizeCurrent.x
+				#partial switch config.layout.childAlignment.x {
+				case .LEFT:
+					extraSpace = 0
+				case .CENTER:
+					extraSpace /= 2
+				}
+				extraSpace = max(0, extraSpace)
+				currentElementTreeNode.nextChildOffset.x += extraSpace
+			} else if config.layout.direction == .TOP_TO_BOTTOM {
+				for childIdx in arrayIter(currentElement.children) {
+					childElement := arrayGetPtr(&s.layoutElements, childIdx)
+					if childElement.exiting {continue}
+					contentSizeCurrent.x = max(contentSizeCurrent.x, childElement.dimensions.x)
+					contentSizeCurrent.y += childElement.dimensions.y
+				}
+				contentSizeCurrent.y +=
+					f32(max(currentElement.children.len - 1, 0)) * config.layout.childGap
+				extraSpace :=
+					currentElement.dimensions.y -
+					config.layout.padding.top -
+					config.layout.padding.bottom -
+					contentSizeCurrent.y
+				#partial switch config.layout.childAlignment.y {
+				case .TOP:
+					extraSpace = 0
+				case .CENTER:
+					extraSpace /= 2
+				}
+				extraSpace = max(0, extraSpace)
+				currentElementTreeNode.nextChildOffset.y += extraSpace
+			}
+
+			if scrollContainerData != nil {
+				scrollContainerData.contentSize = [2]f32 {
+					contentSizeCurrent.x +
+					config.layout.padding.left +
+					config.layout.padding.right,
+					contentSizeCurrent.y +
+					config.layout.padding.top +
+					config.layout.padding.bottom,
+				}
+			}
+
+
+			// Add children to the DFS Buffer
+			dfsBuffer.len += currentElement.children.len
+			for childIdx, idx in arrayIter(currentElement.children) {
+				childElement := arrayGetPtr(&s.layoutElements, childIdx)
+				childConfig, childIsLayout := childElement.config.(ElementDeclaration)
+				if config.layout.direction == .LEFT_TO_RIGHT {
+					currentElementTreeNode.nextChildOffset.y = config.layout.padding.top
+					whiteSpaceAroundChild :=
+						currentElement.dimensions.y -
+						config.layout.padding.top -
+						config.layout.padding.bottom -
+						childElement.dimensions.y
+
+					#partial switch config.layout.childAlignment.y {
+					case .CENTER:
+						currentElementTreeNode.nextChildOffset.y += whiteSpaceAroundChild / 2.0
+					case .BOTTOM:
+						currentElementTreeNode.nextChildOffset.y += whiteSpaceAroundChild
 					}
-					if scroll_container_data != nil {
-						scroll_container_data.content_size = [2]f32 {
-							content_size.x +
-							config.layout.padding.left +
-							config.layout.padding.right,
-							content_size.y +
-							config.layout.padding.top +
-							config.layout.padding.bottom,
-						}
-					}
+
 				} else {
-
-				}
-			} else {
-				// DFS is returning back up
-				close_clip_element := false
-				current_element_data := get_hash_map_item(current_element.id)
-				// close clip element if required
-				if is_layout && (config.clip.horizontal || config.clip.vertical) {
-					close_clip_element = !element_is_offscreen(&current_element_data.bounding_box)
-					for &mapping in array_iter(s.scroll_container_datas) {
-						if mapping.layout_element == current_element {
-							scroll_offset = config.clip.child_offset
-							if s.external_scroll_handling_enabled {
-								scroll_offset = {}
-							}
-							break
-						}
+					currentElementTreeNode.nextChildOffset.x = config.layout.padding.left
+					whiteSpaceAroundChild :=
+						currentElement.dimensions.x -
+						config.layout.padding.left -
+						config.layout.padding.right -
+						childElement.dimensions.x
+					#partial switch config.layout.childAlignment.x {
+					case .CENTER:
+						currentElementTreeNode.nextChildOffset.x += whiteSpaceAroundChild / 2.0
+					case .RIGHT:
+						currentElementTreeNode.nextChildOffset.x += whiteSpaceAroundChild
 					}
 				}
-
-				if is_layout && border_has_any_width(&config.border) {
-					// culling - don't bother to generate render commands for recangles entirely outside the screen. This won't stop their children from being rendered if they overflow
-					if !element_is_offscreen(&current_element_data.bounding_box) {
-						push_render_command(
-							{
-								bounding_box = current_element_data.bounding_box,
-								render_data = Border_Render_Data {
-									color = config.border.color,
-									corner_radius = config.corner_radius,
-									width = config.border.width,
-								},
-								user_ptr = config.user_ptr,
-								id = hash_number(current_element.id, u32(current_element.children.len)).id,
-								type = .BORDER,
-							},
-						)
-						if config.border.width.between_children > 0 && config.border.color.a > 0 {
-							half_gap := config.layout.child_gap / 2.0
-							border_offset := [2]f32 {
-								config.layout.padding.left - half_gap,
-								config.layout.padding.top - half_gap,
-							}
-							if config.layout.direction == .LEFT_TO_RIGHT {
-								for child_idx, idx in array_iter(current_element.children) {
-									child_element := array_get_ptr(&s.layout_elements, child_idx)
-									if idx > 0 {
-										push_render_command(
-											{
-												bounding_box = {
-													current_element_data.bounding_box.x +
-													border_offset.x +
-													scroll_offset.x,
-													current_element_data.bounding_box.y +
-													scroll_offset.y,
-													config.border.width.between_children,
-													current_element.dimensions.y,
-												},
-												render_data = Rectangle_Render_Data {
-													color = config.border.color,
-												},
-												user_ptr = config.user_ptr,
-												id = hash_number(current_element.id, u32(current_element.children.len + 1 + idx)).id,
-												type = .RECTANGLE,
-											},
-										)
-									}
-									border_offset.x +=
-										child_element.dimensions.x + config.layout.child_gap
-								}
-							} else {
-								for child_idx, idx in array_iter(current_element.children) {
-									child_element := array_get_ptr(&s.layout_elements, child_idx)
-									if idx > 0 {
-										push_render_command(
-											{
-												bounding_box = {
-													current_element_data.bounding_box.x +
-													scroll_offset.x,
-													current_element_data.bounding_box.y +
-													border_offset.y +
-													scroll_offset.y,
-													current_element.dimensions.x,
-													config.border.width.between_children,
-												},
-												render_data = Rectangle_Render_Data {
-													color = config.border.color,
-												},
-												user_ptr = config.user_ptr,
-												id = hash_number(current_element.id, u32(current_element.children.len + 1 + idx)).id,
-												type = .RECTANGLE,
-											},
-										)
-									}
-									border_offset.y +=
-										child_element.dimensions.y + config.layout.child_gap
-								}
-							}
-						}
-					}
+				childPosition := [2]f32 {
+					currentElementTreeNode.position.x +
+					currentElementTreeNode.nextChildOffset.x +
+					scrollOffset.x,
+					currentElementTreeNode.position.y +
+					currentElementTreeNode.nextChildOffset.y +
+					scrollOffset.y,
 				}
 
-				if is_layout && config.overlay_color.a > 0 {
-					push_render_command(
-						{
-							user_ptr = config.user_ptr,
-							id = current_element.id,
-							z_idx = root.z_idx,
-							type = .COLOR_OVERLAY_END,
-						},
-					)
+				// DFS buffer elements need to be added in reverse because stack traversal happens backwards
+				nextChildOffset :=
+					childIsLayout ? [2]f32{childConfig.layout.padding.left, childConfig.layout.padding.top} : {0, 0}
+				newNodeIdx := dfsBuffer.len - 1 - idx
+				dfsBuffer.items[newNodeIdx] = LayoutElementTreeNode {
+					layoutElement   = childElement,
+					position        = {childPosition.x, childPosition.y},
+					nextChildOffset = nextChildOffset,
 				}
+				s.treeNodeVisited.items[newNodeIdx] = false
 
-				// This exists because the scissor needs to end after borders between elements
-				if close_clip_element {
-					push_render_command(
-						Render_Command {
-							id = hash_number(current_element.id, u32(root_element.children.len + 11)).id,
-							type = .SCISSOR_END,
-						},
-					)
-				}
-				dfs_buffer.len -= 1
-				continue
-			}
-			// Add children to the DFS buffer
-			if is_layout {
-				dfs_buffer.len += current_element.children.len
-				for child_idx, idx in array_iter(current_element.children) {
-					child_element := array_get_ptr(&s.layout_elements, child_idx)
-					child_config, child_is_layout := child_element.config.(Element_Declaration)
+				// update parent offsets
+				if !childElement.exiting {
 					if config.layout.direction == .LEFT_TO_RIGHT {
-						current_element_tree_node.next_child_offset.y = config.layout.padding.top
-						white_space_around_child :=
-							current_element.dimensions.y -
-							config.layout.padding.top -
-							config.layout.padding.bottom -
-							child_element.dimensions.y
-
-						#partial switch config.layout.child_alignment.y {
-						case .CENTER:
-							current_element_tree_node.next_child_offset.y +=
-								white_space_around_child / 2.0
-						case .BOTTOM:
-							current_element_tree_node.next_child_offset.y +=
-								white_space_around_child
-						}
-
+						currentElementTreeNode.nextChildOffset.x +=
+							childElement.dimensions.x + config.layout.childGap
 					} else {
-						current_element_tree_node.next_child_offset.x = config.layout.padding.left
-						white_space_around_child :=
-							current_element.dimensions.x -
-							config.layout.padding.left -
-							config.layout.padding.right -
-							child_element.dimensions.x
-						#partial switch config.layout.child_alignment.x {
-						case .CENTER:
-							current_element_tree_node.next_child_offset.x +=
-								white_space_around_child / 2.0
-						case .RIGHT:
-							current_element_tree_node.next_child_offset.x +=
-								white_space_around_child
-						}
-					}
-					child_position := [2]f32 {
-						current_element_tree_node.position.x +
-						current_element_tree_node.next_child_offset.x +
-						scroll_offset.x,
-						current_element_tree_node.position.y +
-						current_element_tree_node.next_child_offset.y +
-						scroll_offset.y,
-					}
-
-					// DFS buffer elements need to be added in reverse because stack traversal happens backwards
-					next_child_offset :=
-						child_is_layout ? [2]f32{child_config.layout.padding.left, child_config.layout.padding.top} : {0, 0}
-					new_node_idx := dfs_buffer.len - 1 - idx
-					dfs_buffer.items[new_node_idx] = Layout_Element_Tree_Node {
-						layout_element    = child_element,
-						position          = {child_position.x, child_position.y},
-						next_child_offset = next_child_offset,
-					}
-					s.tree_node_visited.items[new_node_idx] = false
-
-					// update parent offsets
-					if !child_is_layout || child_config.floating.attach_to != .INLINE {
-						if config.layout.direction == .LEFT_TO_RIGHT {
-							current_element_tree_node.next_child_offset.x +=
-								child_element.dimensions.x + config.layout.child_gap
-						} else {
-							current_element_tree_node.next_child_offset.y +=
-								child_element.dimensions.y + config.layout.child_gap
-						}
+						currentElementTreeNode.nextChildOffset.y +=
+							childElement.dimensions.y + config.layout.childGap
 					}
 				}
 			}
 		}
-		if root.clip_element_id != 0 {
-			push_render_command(
-				Render_Command {
-					id = hash_number(root_element.id, u32(root_element.children.len + 11)).id,
-					type = .SCISSOR_END,
-				},
-			)
-		}
-	}
-}
 
-@(private = "file")
-get_cursor_over_ids :: proc() -> Array(Element_ID) {
-	return s.cursor_over_ids
-}
-
-@(private = "file")
-clone_transition_elements :: proc(
-	root_idx: int,
-	root_child_idx: int,
-	exiting: bool,
-) -> Transition_Elements_Added_Count {
-	s := s
-	next_empty_slot_offset := 0
-	next_empty_child_offset := 0
-	for &data in array_iter(s.transition_datas) {
-		if (exiting && data.state != .EXITING) || (!exiting && data.state == .EXITING) {
-			continue
-		}
-		all_config, is_layout := data.element_this_frame.config.(Element_Declaration)
-		if is_layout && all_config.transition.on_begin_exit != nil {
-			config := all_config.transition
-			bfs_buffer := s.open_layout_element_stack
-			bfs_buffer.len = 0
-			s.layout_elements.items[root_idx + next_empty_slot_offset] = data.element_this_frame^
-			array_push(&bfs_buffer, root_idx + next_empty_slot_offset)
-			current_root_idx := root_idx + next_empty_slot_offset
-			data.element_this_frame = &(s.layout_elements.items[root_idx + next_empty_slot_offset])
-			buffer_idx := 0
-			next_empty_slot_offset += 1
-			for buffer_idx < bfs_buffer.len {
-				// Note: this is purposefully not a range checked access - if the element has transitioned out, it will be beyond the length of the layoutElements array
-				layout_element := &(s.layout_elements.items[array_get(bfs_buffer, buffer_idx)])
-				buffer_idx += 1
-				first_child_slot := root_child_idx + next_empty_child_offset
-				for child in array_iter(layout_element.children) {
-					array_push(&bfs_buffer, child)
-					child_element := &s.layout_elements.items[child]
-					next_slot := root_idx + next_empty_slot_offset
-					s.layout_elements.items[next_slot] = child_element^
-					new_child_element := &s.layout_elements.items[next_slot]
-					if text_config, is_text := &new_child_element.config.(Text_Declaration);
-					   exiting && is_text {
-						text_config.data.wrapped_lines.len = 0
-					}
-					child_slot := root_child_idx + next_empty_child_offset
-					s.layout_element_children.items[child_slot] = next_slot
-					if exiting {
-						s.layout_element_children.len += 1
-					}
-					next_empty_slot_offset += 1
-					next_empty_child_offset += 1
-				}
-				layout_element.children.items = s.layout_element_children.items[first_child_slot:]
-				layout_element.children.cap = s.layout_element_children.cap - first_child_slot
+		if root.clipElementId != 0 {
+			clipHashMapItem := getHashMapItem(root.clipElementId)
+			if clipHashMapItem != nil && !elementIsOffscreen(&clipHashMapItem.boundingBox) {
+				pushRenderCommand(
+					RenderCommand {
+						id = hashNumber(rootElement.id, u32(rootElement.children.len + 11)).id,
+						type = .SCISSOR_END,
+					},
+				)
 			}
 		}
 	}
-	return Transition_Elements_Added_Count {
-		elements_added = next_empty_slot_offset,
-		element_children_added = next_empty_child_offset,
-	}
 }
+
+
+@(private = "file")
+getPointerOverIds :: proc() -> Array(ElementID) {
+	return s.pointerOverIds
+}
+
 
 // NOTE DEBUG
 
@@ -2848,142 +2778,184 @@ DEBUG_VIEW_COLOR_SELECTED_ROW: Color = {102, 80, 78, 255} / 255
 DEBUG_VIEW_ROW_HEIGHT: f32 : 30
 DEBUG_VIEW_OUTER_PADDING: f32 : 10
 DEBUG_VIEW_INDENT_WIDTH: f32 : 16
-DEBUG_VIEW_TEXT_NAME_CONFIG: Text_Element_Config = {
-	text_color = Color({238, 226, 231, 255} / 255),
-	font_size  = 16,
-	wrap_mode  = .WRAP_NONE,
+DEBUG_VIEW_TEXT_NAME_CONFIG: TextElementConfig = {
+	textColor = Color({238, 226, 231, 255} / 255),
+	fontSize  = 16,
+	wrapMode  = .WRAP_NONE,
 }
-debug_view_scroll_view_item_layout_config: Layout_Config = {}
+debugViewScrollViewItemLayoutConfig: LayoutConfig = {}
 
-
-// @(private="file")
-// debug_get_element_config_type_label :: proc(config: Element_Config
-// ) -> Debug_Element_Config_Type_Label_Config
-// {
-// 	switch v in config {
-// 	case ^Shared_Element_Config: return {"Shared", Color({243,134,48,255} / 255) }
-// 	case ^Text_Element_Config: return {"Text", Color({105,210,231,255} / 255) }
-// 	case ^Aspect_Ratio: return {"Aspect", Color({101,149,194,255} / 255) }
-// 	case ^Image_Data: return {"Image", Color({121,189,154,255} / 255) }
-// 	case ^Floating_Element_Config: return {"Floating", Color({250,105,0,255} / 255) }
-// 	case ^Clip_Element_Config: return {"Scroll", Color({242, 196, 90, 255} / 255) }
-// 	case ^Border_Element_Config: return {"Border", Color({108, 91, 123, 255} / 255) }
-// 	case ^Custom_Element_Config: return {"Custom", Color({11,72,107,255} / 255) }
-// 	}
-// 	return {"Error", Color({0, 0, 0, 255} / 255)}
-// }
-idi :: proc(label: string, offset: u32) -> Element_ID {
-	return hash_string_with_offset(label, offset, 0)
+DebugElementConfigType :: enum {
+	BACKGROUND_COLOR,
+	OVERLAY_COLOR,
+	CORNER_RADIUS,
+	TEXT,
+	ASPECT,
+	IMAGE,
+	FLOATING,
+	CLIP,
+	BORDER,
+	CUSTOM,
 }
 
 @(private = "file")
-render_debug_layout_elements_list :: proc(
-	initial_roots_length: int,
-	highlighted_row_idx: int,
-) -> Render_Debug_Layout_Data {
-	dfs_buffer := s.reusable_element_idx_buffer
-	debug_view_scroll_view_item_layout_config = {
-		sizing = {height = sizing_fixed(DEBUG_VIEW_ROW_HEIGHT)},
-		child_gap = 6,
-		child_alignment = {y = .CENTER},
+debugGetElementConfigTypeLabel :: proc(
+	config: DebugElementConfigType,
+) -> DebugElementConfigTypeLabelConfig {
+	#partial switch config {
+	case .BACKGROUND_COLOR:
+		return {"Background", Color({243, 134, 48, 255} / 255)}
+	case .OVERLAY_COLOR:
+		return {"Overlay", Color({142, 129, 206, 255} / 255)}
+	case .CORNER_RADIUS:
+		return {"Radius", Color({239, 148, 157, 255} / 255)}
+	case .TEXT:
+		return {"Text", Color({105, 210, 231, 255} / 255)}
+	case .ASPECT:
+		return {"Aspect", Color({101, 149, 194, 255} / 255)}
+	case .IMAGE:
+		return {"Image", Color({121, 189, 154, 255} / 255)}
 	}
-	layout_data: Render_Debug_Layout_Data
-	highlighted_element_id: u32 = 0
-	for i := 0; i < initial_roots_length; i += 1 {
-		root_idx := u32(i)
-		root := array_get_ptr(&s.layout_element_tree_roots, i)
-		dfs_buffer.len = 0
-		array_push(&dfs_buffer, root.layout_element_idx)
-		s.tree_node_visited.items[0] = false
-		if root_idx > 0 {
-			{ui(idi("claydo_debug_view_empty_row_outer", root_idx))(
+	return {"Error", Color({0, 0, 0, 255} / 255)}
+}
+
+renderElementConfigTypeLabel :: proc(label: string, color: Color, offscreen: bool) {
+	backgroundColor := color
+	backgroundColor.a = 90 / 255
+	{ui()(
+		{
+			layout = {padding = {8, 8, 2, 2}},
+			backgroundColor = backgroundColor,
+			cornerRadius = cornerRadiusAll(4),
+			border = {color = color, width = {1, 1, 1, 1, 0}},
+		},
+		)
+		text(
+			label,
+			{textColor = offscreen ? DEBUG_VIEW_COLOR_3 : DEBUG_VIEW_COLOR_4, fontSize = 16},
+		)
+	}
+}
+
+idi :: proc(label: string, offset: u32) -> ElementID {
+	return hashStringWithOffset(label, offset, 0)
+}
+
+@(private = "file")
+renderDebugLayoutElementsList :: proc(
+	initialRootsLength: int,
+	highlightedRowIdx: int,
+) -> RenderDebugLayoutData {
+	dfsBuffer := s.reusableElementIdxBuffer
+	debugViewScrollViewItemLayoutConfig = {
+		sizing = {height = sizingFixed(DEBUG_VIEW_ROW_HEIGHT)},
+		childGap = 6,
+		childAlignment = {y = .CENTER},
+	}
+	layoutData: RenderDebugLayoutData
+	highlightedElementId: u32 = 0
+	for i := 0; i < initialRootsLength; i += 1 {
+		rootIdx := u32(i)
+		root := arrayGetPtr(&s.layoutElementTreeRoots, i)
+		dfsBuffer.len = 0
+		arrayPush(&dfsBuffer, root.layoutElementIdx)
+		s.treeNodeVisited.items[0] = false
+		if rootIdx > 0 {
+			{ui(idi("claydoDebugViewEmptyRowOuter", rootIdx))(
 				{
 					layout = {
-						sizing = {width = sizing_grow(0)},
+						sizing = {width = sizingGrow(0)},
 						padding = {DEBUG_VIEW_INDENT_WIDTH / 2.0, 0, 0, 0},
 					},
 				},
 				)
-				{ui(idi("claydo_debug_view_empty_row", root_idx))(
+				{ui(idi("claydoDebugViewEmptyRow", rootIdx))(
 					{
 						layout = {
 							sizing = {
-								width = sizing_grow(0),
-								height = sizing_fixed(DEBUG_VIEW_ROW_HEIGHT),
+								width = sizingGrow(0),
+								height = sizingFixed(DEBUG_VIEW_ROW_HEIGHT),
 							},
 						},
 						border = {color = DEBUG_VIEW_COLOR_3, width = {top = 1}},
 					},
 					)}
 			}
-			layout_data.row_count += 1
+			layoutData.rowCount += 1
 		}
-		for dfs_buffer.len > 0 {
-			current_element_idx := array_peek(dfs_buffer)
-			current_element := array_get_ptr(&s.layout_elements, current_element_idx)
-			text_config, is_text := current_element.config.(Text_Declaration)
-			if s.tree_node_visited.items[dfs_buffer.len - 1] {
-				if !is_text && current_element.children.len > 0 {
-					close_element()
-					close_element()
-					close_element()
+		for dfsBuffer.len > 0 {
+			currentElementIdx := arrayPeek(dfsBuffer)
+			currentElement := arrayGetPtr(&s.layoutElements, currentElementIdx)
+			textConfig, isText := currentElement.config.(TextDeclaration)
+			config, isLayout := currentElement.config.(ElementDeclaration)
+			if s.treeNodeVisited.items[dfsBuffer.len - 1] {
+				if !isText && currentElement.children.len > 0 {
+					closeElement()
+					closeElement()
+					closeElement()
 				}
-				dfs_buffer.len -= 1
+				dfsBuffer.len -= 1
 				continue
 			}
-			if highlighted_row_idx == layout_data.row_count {
-				if s.cursor_info.state == .PRESSED_THIS_FRAME {
-					s.debug_selected_element_id = current_element.id
-				}
-				highlighted_element_id = current_element.id
-			}
-			s.tree_node_visited.items[dfs_buffer.len - 1] = true
-			current_element_data := get_hash_map_item(current_element.id)
-			offscreen := element_is_offscreen(&current_element_data.bounding_box)
-			if s.debug_selected_element_id == current_element.id {
-				layout_data.selected_element_row_idx = layout_data.row_count
+
+			if currentElement.exiting { 	// TODO there is a duplicate ID problem with exiting elements
+				dfsBuffer.len -= 1
+				continue
 			}
 
-			{ui(idi("claydo_debug_view_element_outer", current_element.id))(
-				{layout = debug_view_scroll_view_item_layout_config},
+			if highlightedRowIdx == layoutData.rowCount {
+				if s.pointerInfo.state == .PRESSED_THIS_FRAME {
+					s.debugSelectedElementId = currentElement.id
+				}
+				highlightedElementId = currentElement.id
+			}
+			s.treeNodeVisited.items[dfsBuffer.len - 1] = true
+			currentElementData := getHashMapItem(currentElement.id)
+			offscreen := elementIsOffscreen(&currentElementData.boundingBox)
+			if s.debugSelectedElementId == currentElement.id {
+				layoutData.selectedElementRowIdx = layoutData.rowCount
+			}
+
+			{ui(idi("claydoDebugViewElementOuter", currentElement.id))(
+				{layout = debugViewScrollViewItemLayoutConfig},
 				)
-				if !(is_text || current_element.children.len == 0) {
-					{ui(idi("claydo_debug_view_collapse_element", current_element.id))(
+				if !(isText || currentElement.children.len == 0) {
+					{ui(idi("claydoDebugViewCollapseElement", currentElement.id))(
 						{
 							layout = {
-								sizing = {sizing_fixed(16), sizing_fixed(16)},
-								child_alignment = {.CENTER, .CENTER},
+								sizing = {sizingFixed(16), sizingFixed(16)},
+								childAlignment = {.CENTER, .CENTER},
 							},
-							corner_radius = corner_radius_all(4),
+							cornerRadius = cornerRadiusAll(4),
 							border = {color = DEBUG_VIEW_COLOR_3, width = {1, 1, 1, 1, 0}},
 						},
 						)
 						text(
-							current_element_data != nil && current_element_data.debug_data.collapsed ? "+" : "-",
-							{text_color = DEBUG_VIEW_COLOR_4, font_size = 16},
+							currentElementData != nil && currentElementData.debugData.collapsed ? "+" : "-",
+							{textColor = DEBUG_VIEW_COLOR_4, fontSize = 16},
 						)
 					}
 				} else { 	// square dot for empty containers
 					{ui()(
 						{
 							layout = {
-								sizing = {sizing_fixed(16), sizing_fixed(16)},
-								child_alignment = {.CENTER, .CENTER},
+								sizing = {sizingFixed(16), sizingFixed(16)},
+								childAlignment = {.CENTER, .CENTER},
 							},
 						},
 						)
 						{ui()(
 							{
-								layout = {sizing = {sizing_fixed(8), sizing_fixed(8)}},
-								color = DEBUG_VIEW_COLOR_3,
-								corner_radius = corner_radius_all(2),
+								layout = {sizing = {sizingFixed(8), sizingFixed(8)}},
+								backgroundColor = DEBUG_VIEW_COLOR_3,
+								cornerRadius = cornerRadiusAll(2),
 							},
 							)}
 					}
 				}
 				// collisions and offscreen info
-				if current_element_data != nil {
-					if current_element_data.debug_data.collision {
+				if currentElementData != nil {
+					if currentElementData.debugData.collision {
 						{ui()(
 							{
 								layout = {padding = {8, 8, 2, 2}},
@@ -2993,7 +2965,7 @@ render_debug_layout_elements_list :: proc(
 								},
 							},
 							)
-							text("Duplicate ID", {text_color = DEBUG_VIEW_COLOR_3, font_size = 16})
+							text("Duplicate ID", {textColor = DEBUG_VIEW_COLOR_3, fontSize = 16})
 						}
 					}
 					if offscreen {
@@ -3006,220 +2978,269 @@ render_debug_layout_elements_list :: proc(
 								},
 							},
 							)
-							text("Offscreen", {text_color = DEBUG_VIEW_COLOR_3, font_size = 16})
+							text("Offscreen", {textColor = DEBUG_VIEW_COLOR_3, fontSize = 16})
 						}
 					}
 				}
-				id_string := s.layout_element_id_strings.items[current_element_idx]
-				if len(id_string) > 0 {
-					text(
-						id_string,
-						offscreen ? {text_color = DEBUG_VIEW_COLOR_3, font_size = 16} : DEBUG_VIEW_TEXT_NAME_CONFIG,
-					)
-				}
-				if !is_text {
-					current_config := current_element.config.(Element_Declaration)
-					label_color := Color{243, 134, 48, 90} / 255
-					label_color.a = 90 / 255
+				if len(currentElementData.elementId.stringId) > 0 {
+					{ui()({})
+						textConfig :=
+							offscreen ? TextElementConfig{textColor = DEBUG_VIEW_COLOR_3, fontSize = 16} : DEBUG_VIEW_TEXT_NAME_CONFIG
+						text(currentElementData.elementId.stringId, textConfig)
+						if currentElementData.elementId.offset != 0 {
+							text(" (", textConfig)
 
-					color := current_config.color
-					radius := current_config.corner_radius
-					if color.a > 0 {
-						{ui()(
-							{
-								layout = {padding = {8, 8, 2, 2}},
-								color = label_color,
-								corner_radius = corner_radius_all(4),
-								border = {color = label_color, width = {1, 1, 1, 1, 0}},
-							},
+							str_buf: [10]u8
+							currentOffset := strconv.write_int(
+								str_buf[:],
+								i64(currentElementData.elementId.offset),
+								10,
 							)
-							text(
-								"Color",
-								{
-									text_color = offscreen ? DEBUG_VIEW_COLOR_3 : DEBUG_VIEW_COLOR_4,
-									font_size = 16,
-								},
-							)
+							text(currentOffset, textConfig)
+							text(")", textConfig)
 						}
 					}
-					if radius.bottom_left > 0 {
-						{ui()(
-							{
-								layout = {padding = {8, 8, 2, 2}},
-								color = label_color,
-								corner_radius = corner_radius_all(4),
-								border = {color = label_color, width = {1, 1, 1, 1, 0}},
-							},
-							)
-							text(
-								"Radius",
-								{
-									text_color = offscreen ? DEBUG_VIEW_COLOR_3 : DEBUG_VIEW_COLOR_4,
-									font_size = 16,
-								},
-							)
-						}
+				}
+				if isText {
+					renderElementConfigTypeLabel(
+						"Text",
+						[4]f32{105, 210, 231, 255} / 255,
+						offscreen,
+					)
+				} else {
+					if config.backgroundColor.a > 0 {
+						labelConfig := debugGetElementConfigTypeLabel(.BACKGROUND_COLOR)
+						renderElementConfigTypeLabel(
+							labelConfig.label,
+							config.backgroundColor,
+							offscreen,
+						)
+					}
+					if config.overlayColor.a > 0 {
+						labelConfig := debugGetElementConfigTypeLabel(.OVERLAY_COLOR)
+						renderElementConfigTypeLabel(
+							labelConfig.label,
+							config.backgroundColor,
+							offscreen,
+						)
+					}
+					if config.cornerRadius != DEFAULT_CORNER_RADIUS {
+						labelConfig := debugGetElementConfigTypeLabel(.CORNER_RADIUS)
+						renderElementConfigTypeLabel(
+							labelConfig.label,
+							config.backgroundColor,
+							offscreen,
+						)
+					}
+					if config.aspectRatio != 0 {
+						labelConfig := debugGetElementConfigTypeLabel(.ASPECT)
+						renderElementConfigTypeLabel(
+							labelConfig.label,
+							config.backgroundColor,
+							offscreen,
+						)
+					}
+					if config.image != nil {
+						labelConfig := debugGetElementConfigTypeLabel(.IMAGE)
+						renderElementConfigTypeLabel(
+							labelConfig.label,
+							config.backgroundColor,
+							offscreen,
+						)
+					}
+					if config.floating.attachTo != .NONE {
+						labelConfig := debugGetElementConfigTypeLabel(.FLOATING)
+						renderElementConfigTypeLabel(
+							labelConfig.label,
+							config.backgroundColor,
+							offscreen,
+						)
+					}
+					if config.clip.horizontal || config.clip.vertical {
+						labelConfig := debugGetElementConfigTypeLabel(.CLIP)
+						renderElementConfigTypeLabel(
+							labelConfig.label,
+							config.backgroundColor,
+							offscreen,
+						)
+					}
+					if borderHasAnyWidth(&config.border) {
+						labelConfig := debugGetElementConfigTypeLabel(.BORDER)
+						renderElementConfigTypeLabel(
+							labelConfig.label,
+							config.backgroundColor,
+							offscreen,
+						)
+					}
+					if config.custom != nil {
+						labelConfig := debugGetElementConfigTypeLabel(.CUSTOM)
+						renderElementConfigTypeLabel(
+							labelConfig.label,
+							config.backgroundColor,
+							offscreen,
+						)
 					}
 				}
 			}
-
 			// Render the text contents below the element as a non-interactive row
-			if is_text {
-				layout_data.row_count += 1
-				text_element_data := text_config.data
-				raw_text_config :=
-					offscreen ? Text_Element_Config{text_color = DEBUG_VIEW_COLOR_3, font_size = 16} : DEBUG_VIEW_TEXT_NAME_CONFIG
+			if isText {
+				layoutData.rowCount += 1
+				rawTextConfig :=
+					offscreen ? TextElementConfig{textColor = DEBUG_VIEW_COLOR_3, fontSize = 16} : DEBUG_VIEW_TEXT_NAME_CONFIG
 				{ui()(
 					{
 						layout = {
-							sizing = {height = sizing_fixed(DEBUG_VIEW_ROW_HEIGHT)},
-							child_alignment = {y = .CENTER},
+							sizing = {height = sizingFixed(DEBUG_VIEW_ROW_HEIGHT)},
+							childAlignment = {y = .CENTER},
 						},
 					},
 					)
 					{ui()(
-						{layout = {sizing = {width = sizing_fixed(DEBUG_VIEW_INDENT_WIDTH + 16)}}},
+						{layout = {sizing = {width = sizingFixed(DEBUG_VIEW_INDENT_WIDTH + 16)}}},
 						)}
-					text("\"", raw_text_config)
+					text("\"", rawTextConfig)
 					text(
-						len(text_element_data.text) > 40 ? text_element_data.text[:37] : text_element_data.text,
-						raw_text_config,
+						len(textConfig.data.text) > 40 ? textConfig.data.text[:40] : textConfig.data.text,
+						rawTextConfig,
 					)
-					if len(text_element_data.text) > 40 {
-						text("...", raw_text_config)
+					if len(textConfig.data.text) > 40 {
+						text("...", rawTextConfig)
 					}
-					text("\"", raw_text_config)
+					text("\"", rawTextConfig)
 				}
-			} else if current_element.children.len > 0 {
-				open_element()
-				configure_open_element({layout = {padding = {left = 8}}})
-				open_element()
-				configure_open_element(
+			} else if currentElement.children.len > 0 {
+				openElement()
+				configureOpenElement({layout = {padding = {left = 8}}})
+				openElement()
+				configureOpenElement(
 					{
 						layout = {padding = {left = DEBUG_VIEW_INDENT_WIDTH}},
 						border = {color = DEBUG_VIEW_COLOR_3, width = {left = 1}},
 					},
 				)
-				open_element()
-				configure_open_element({layout = {direction = .TOP_TO_BOTTOM}})
+				openElement()
+				configureOpenElement({layout = {direction = .TOP_TO_BOTTOM}})
 			}
-			layout_data.row_count += 1
-			if !is_text ||
-			   (current_element_data != nil && current_element_data.debug_data.collapsed) {
-				for i := current_element.children.len - 1; i >= 0; i -= 1 {
-					array_push(&dfs_buffer, current_element.children.items[i])
-					s.tree_node_visited.items[dfs_buffer.len - 1] = false
+
+			layoutData.rowCount += 1
+			if !isText || (currentElementData != nil && currentElementData.debugData.collapsed) {
+				for i := currentElement.children.len - 1; i >= 0; i -= 1 {
+					arrayPush(&dfsBuffer, currentElement.children.items[i])
+					s.treeNodeVisited.items[dfsBuffer.len - 1] = false // TODO needs to be ranged checked
 				}
 			}
 		}
 	}
-	if s.cursor_info.state == .PRESSED_THIS_FRAME {
-		collapse_button_id := hash_string("claydo_debug_view_collapse_element", 0)
-		#reverse for element_id in array_iter(s.cursor_over_ids) {
-			if element_id.base_id == collapse_button_id.base_id {
-				highlighted_item := get_hash_map_item(element_id.offset)
-				highlighted_item.debug_data.collapsed = !highlighted_item.debug_data.collapsed
+	if s.pointerInfo.state == .PRESSED_THIS_FRAME {
+		collapseButtonId := hashString("Clay__DebugView_CollapseElement", 0)
+		for i := s.pointerOverIds.len - 1; i >= 0; i -= 1 {
+			elementId := arrayGet(s.pointerOverIds, i)
+			if elementId.baseId == collapseButtonId.baseId {
+				highlightedItem := getHashMapItem(elementId.offset)
+				highlightedItem.debugData.collapsed = !highlightedItem.debugData.collapsed
 				break
 			}
 		}
 	}
-	if highlighted_element_id != 0 {
-		{ui(id("claydo_debug_view_element_highlight"))(
+
+	if highlightedElementId != 0 {
+		{ui(id("Clay__DebugView_ElementHighlight"))(
 			{
-				layout = {sizing = {sizing_grow(0), sizing_grow(0)}},
+				layout = {sizing = {sizingGrow(0), sizingGrow(0)}},
 				floating = {
-					parent_id = highlighted_element_id,
-					z_idx = 32767,
-					cursor_capture_mode = .PASSTHROUGH,
-					attach_to = .ELEMENT_WITH_ID,
+					parentId = highlightedElementId,
+					zIdx = 32767,
+					pointerCaptureMode = .PASSTHROUGH,
+					attachTo = .ELEMENT_WITH_ID,
 				},
 			},
 			)
-			{ui(id("claydo_debug_view_element_highlight_rectangle"))(
+			{ui(id("Clay__DebugView_ElementHighlightRectangle"))(
 				{
-					layout = {sizing = {sizing_grow(0), sizing_grow(0)}},
-					color = DEBUG_VIEW_HIGHLIGHT_COLOR,
+					layout = {sizing = {sizingGrow(0), sizingGrow(0)}},
+					backgroundColor = DEBUG_VIEW_HIGHLIGHT_COLOR,
 				},
 				)}
 		}
 	}
-	return layout_data
+	return layoutData
 }
 
-
 @(private = "file")
-render_debug_layout_sizing :: proc(sizing: Sizing_Axis, info_text_config: Text_Element_Config) {
+renderDebugLayoutSizing :: proc(sizing: SizingAxis, infoTextConfig: TextElementConfig) {
 	sizing := sizing
-	sizing_label := "GROW"
+	sizingLabel := "GROW"
 	if sizing.type == .FIT {
-		sizing_label = "FIT"
+		sizingLabel = "FIT"
 	} else if sizing.type == .PERCENT {
-		sizing_label = "PERCENT"
+		sizingLabel = "PERCENT"
 	} else if sizing.type == .FIXED {
-		sizing_label = "FIXED"
+		sizingLabel = "FIXED"
 	}
-	text(sizing_label, info_text_config)
+	text(sizingLabel, infoTextConfig)
 	if sizing.type == .GROW ||
 	   sizing.type == .FIXED ||
 	   sizing.type == .FIT && sizing.value != nil {
-		text("(", info_text_config)
-		if sizing.value.(Sizing_Min_Max).min != 0 {
-			text("min: ", info_text_config)
-			text(int_to_string(int(sizing.value.(Sizing_Min_Max).min)), info_text_config)
+		text("(", infoTextConfig)
+		if sizing.value.(SizingMinMax).min != 0 {
+			text("min: ", infoTextConfig)
+			text(intToString(int(sizing.value.(SizingMinMax).min)), infoTextConfig)
 		}
-		if sizing.value.(Sizing_Min_Max).max != MAX_FLOAT {
-			text("max: ", info_text_config)
-			text(int_to_string(int(sizing.value.(Sizing_Min_Max).max)), info_text_config)
+		if sizing.value.(SizingMinMax).max != MAX_FLOAT {
+			text("max: ", infoTextConfig)
+			text(intToString(int(sizing.value.(SizingMinMax).max)), infoTextConfig)
 		}
-		text(")", info_text_config)
+		text(")", infoTextConfig)
 	} else if sizing.type == .PERCENT {
 		if sizing.value == nil {
 			sizing.value = Percent(0)
 		}
-		text("( ", info_text_config)
-		text(int_to_string(int(sizing.value.(Percent) * 100)), info_text_config)
-		text("%)", info_text_config)
+		text("( ", infoTextConfig)
+		text(intToString(int(sizing.value.(Percent) * 100)), infoTextConfig)
+		text("%)", infoTextConfig)
 	}
 }
 
-// @(private="file")
-// render_debug_view_element_config_header :: proc(element_id: string, actual: Element_Config)
-// {
-// 	config := debug_get_element_config_type_label(actual)
-// 	background_color := config.color
-// 	background_color.a = 90
-// 	{ui()({layout = {sizing = {width = sizing_grow(0)}, padding = padding_all(DEBUG_VIEW_OUTER_PADDING), child_alignment = {y = .CENTER}}})
-// 		{ui()({layout = {padding = {8,8,2,2}}, color = background_color, corner_radius = corner_radius_all(4), border = {color=config.color, width={1,1,1,1,0}}})
-// 			text(config.label, {text_color = DEBUG_VIEW_COLOR_4, font_size=16})
-// 		}
-// 		{ui()({layout = {sizing = {width = sizing_grow(0)}}})}
-// 		text(element_id, {text_color = DEBUG_VIEW_COLOR_3, font_size = 16, wrap_mode = .WRAP_NONE})
-// 	}
-// }
+@(private = "file")
+renderDebugViewElementConfigHeader :: proc(elementId: string, type: DebugElementConfigType) {
+	config := debugGetElementConfigTypeLabel(type)
+	backgroundColor := config.color
+	backgroundColor.a = 90 / 255
+	{ui()(
+		{
+			layout = {padding = {8, 8, 2, 2}},
+			backgroundColor = backgroundColor,
+			cornerRadius = cornerRadiusAll(4),
+			border = {color = config.color, width = {1, 1, 1, 1, 0}},
+		},
+		)
+		text(config.label, {textColor = DEBUG_VIEW_COLOR_4, fontSize = 16})
+	}
+}
 
 @(private = "file")
-render_debug_view_color :: proc(color: Color, config: Text_Element_Config) {
-	{ui()({layout = {child_alignment = {y = .CENTER}}})
+renderDebugViewColor :: proc(color: Color, config: TextElementConfig) {
+	{ui()({layout = {childAlignment = {y = .CENTER}}})
 		text("{ r: ", config)
-		text(int_to_string(int(color.r * 255)), config)
+		text(intToString(int(color.r * 255 / 90)), config)
 		text("g: ", config)
-		text(int_to_string(int(color.b * 255)), config)
+		text(intToString(int(color.b * 255 / 90)), config)
 		text("b: ", config)
-		text(int_to_string(int(color.g * 255)), config)
+		text(intToString(int(color.g * 255 / 90)), config)
 		text("a: ", config)
-		text(int_to_string(int(color.a * 255)), config)
+		text(intToString(int(color.a * 255 / 90)), config)
 		text(" }", config)
-		{ui()({layout = {sizing = {width = sizing_fixed(10)}}})}
+		{ui()({layout = {sizing = {width = sizingFixed(10)}}})}
 		{ui()(
 			{
 				layout = {
 					sizing = {
-						sizing_fixed(DEBUG_VIEW_ROW_HEIGHT - 8),
-						sizing_fixed(DEBUG_VIEW_ROW_HEIGHT - 8),
+						sizingFixed(DEBUG_VIEW_ROW_HEIGHT - 8),
+						sizingFixed(DEBUG_VIEW_ROW_HEIGHT - 8),
 					},
 				},
-				color = color,
-				corner_radius = corner_radius_all(4),
+				backgroundColor = color,
+				cornerRadius = cornerRadiusAll(4),
 				border = {color = DEBUG_VIEW_COLOR_4, width = {1, 1, 1, 1, 0}},
 			},
 			)}
@@ -3227,90 +3248,87 @@ render_debug_view_color :: proc(color: Color, config: Text_Element_Config) {
 }
 
 @(private = "file")
-render_debug_view_corner_radius :: proc(
-	corner_radius: Corner_Radius,
-	config: Text_Element_Config,
-) {
-	{ui()({layout = {child_alignment = {y = .CENTER}}})
-		text("{ top_left: ", config)
-		text(int_to_string(int(corner_radius.top_left)), config)
-		text(" top_right: ", config)
-		text(int_to_string(int(corner_radius.top_right)), config)
-		text(" bottom_left: ", config)
-		text(int_to_string(int(corner_radius.bottom_left)), config)
-		text(" bottom_right: ", config)
-		text(int_to_string(int(corner_radius.bottom_right)), config)
+renderDebugViewCornerRadius :: proc(cornerRadius: CornerRadius, config: TextElementConfig) {
+	{ui()({layout = {childAlignment = {y = .CENTER}}})
+		text("{ topLeft: ", config)
+		text(intToString(int(cornerRadius.topLeft)), config)
+		text(" topRight: ", config)
+		text(intToString(int(cornerRadius.topRight)), config)
+		text(" bottomLeft: ", config)
+		text(intToString(int(cornerRadius.bottomLeft)), config)
+		text(" bottomRight: ", config)
+		text(intToString(int(cornerRadius.bottomRight)), config)
 		text(" }", config)
 	}
 }
 
 @(private = "file")
-handle_debug_view_close_button_interaction :: proc(
-	element_id: Element_ID,
-	cursor_info: Cursor_Data,
-	user_ptr: rawptr,
+handleDebugViewCloseButtonInteraction :: proc(
+	elementId: ElementID,
+	pointerInfo: PointerData,
+	userPtr: rawptr,
 ) {
-	if cursor_info.state == .PRESSED_THIS_FRAME {
-		s.debug_mode_enabled = false
+	if pointerInfo.state == .PRESSED_THIS_FRAME {
+		s.debugModeEnabled = false
 	}
 }
 
 @(private = "file")
-render_debug_view :: proc() {
-	close_button_id := hash_string("claydo_debug_view_top_header_close_button_outer", 0)
-	if s.cursor_info.state == .PRESSED_THIS_FRAME {
-		for id in array_iter(s.cursor_over_ids) {
-			if id.id == close_button_id.id {
-				s.debug_mode_enabled = false
+renderDebugView :: proc() {
+	closeButtonId := hashString("claydoDebugViewTopHeaderCloseButtonOuter", 0)
+	if s.pointerInfo.state == .PRESSED_THIS_FRAME {
+		for id in arrayIter(s.pointerOverIds) {
+			if id.id == closeButtonId.id {
+				s.debugModeEnabled = false
 				return
 			}
 		}
 	}
 
-	initial_roots_length := s.layout_element_tree_roots.len
-	initial_elements_len := s.layout_elements.len
-	info_text_config := Text_Element_Config {
-		text_color = DEBUG_VIEW_COLOR_4,
-		font_size  = 16,
-		wrap_mode  = .WRAP_NONE,
+	initialRootsLength := s.layoutElementTreeRoots.len
+	initialElementsLen := s.layoutElements.len
+	infoTextConfig := TextElementConfig {
+		textColor = DEBUG_VIEW_COLOR_4,
+		fontSize  = 16,
+		wrapMode  = .WRAP_NONE,
 	}
-	info_title_config := Text_Element_Config {
-		text_color = DEBUG_VIEW_COLOR_3,
-		font_size  = 16,
-		wrap_mode  = .WRAP_NONE,
+	infoTitleConfig := TextElementConfig {
+		textColor = DEBUG_VIEW_COLOR_3,
+		fontSize  = 16,
+		wrapMode  = .WRAP_NONE,
 	}
-	scroll_id := hash_string("claydo_debug_view_outer_scroll_plane", 0)
-	scroll_y_offset: f32 = 0
-	cursor_in_debug_view := s.cursor_info.position.y < s.layout_dimensions.y - 300
-	for &scroll_container_data in array_iter(s.scroll_container_datas) {
-		if scroll_container_data.element_id == scroll_id.id {
-			if !s.external_scroll_handling_enabled {
-				scroll_y_offset = scroll_container_data.scroll_position.y
+	scrollId := hashString("claydoDebugViewOuterScrollPlane", 0)
+	scrollY_offset: f32 = 0
+	pointerInDebugView := s.pointerInfo.position.y < s.layoutDimensions.y - 300
+	for &scrollContainerData in arrayIter(s.scrollContainerDatas) {
+		if scrollContainerData.elementId == scrollId.id {
+			if !s.externalScrollHandlingEnabled {
+				scrollY_offset = scrollContainerData.scrollPosition.y
 			} else {
-				cursor_in_debug_view =
-					s.cursor_info.position.y + scroll_container_data.scroll_position.y <
-					s.layout_dimensions.y - 300
+				pointerInDebugView =
+					s.pointerInfo.position.y + scrollContainerData.scrollPosition.y <
+					s.layoutDimensions.y - 300
 			}
 			break
 		}
 	}
-	highlighted_row: int =
-		cursor_in_debug_view ? int((s.cursor_info.position.y - scroll_y_offset) / DEBUG_VIEW_ROW_HEIGHT) - 1 : -1
-	if s.cursor_info.position.x < s.layout_dimensions.x - DEBUG_VIEW_WIDTH {
-		highlighted_row = -1
+	highlightedRow: int =
+		pointerInDebugView ? int((s.pointerInfo.position.y - scrollY_offset) / DEBUG_VIEW_ROW_HEIGHT) - 1 : -1
+	if s.pointerInfo.position.x < s.layoutDimensions.x - DEBUG_VIEW_WIDTH {
+		highlightedRow = -1
 	}
-	layout_data: Render_Debug_Layout_Data = {}
-	{ui(id("claydo_debug_view"))(
+	layoutData: RenderDebugLayoutData = {}
+	{ui(id("claydoDebugView"))(
 		{
 			layout = {
-				sizing = {sizing_fixed(DEBUG_VIEW_WIDTH), sizing_fixed(s.layout_dimensions.y)},
+				sizing = {sizingFixed(DEBUG_VIEW_WIDTH), sizingFixed(s.layoutDimensions.y)},
 				direction = .TOP_TO_BOTTOM,
 			},
 			floating = {
-				z_idx = 32765,
-				attach_points = {element = .LEFT_CENTER, parent = .RIGHT_CENTER},
-				attach_to = .ROOT,
-				clip_to = .ATTACHED_PARENT,
+				zIdx = 32765,
+				attachPoints = {element = .LEFT_CENTER, parent = .RIGHT_CENTER},
+				attachTo = .ROOT,
+				clipTo = .ATTACHED_PARENT,
 			},
 			border = {color = DEBUG_VIEW_COLOR_3, width = {bottom = 1}},
 		},
@@ -3318,66 +3336,68 @@ render_debug_view :: proc() {
 		{ui()(
 			{
 				layout = {
-					sizing = {sizing_grow(0), sizing_fixed(DEBUG_VIEW_ROW_HEIGHT)},
+					sizing = {sizingGrow(0), sizingFixed(DEBUG_VIEW_ROW_HEIGHT)},
 					padding = {DEBUG_VIEW_OUTER_PADDING, DEBUG_VIEW_OUTER_PADDING, 0, 0},
-					child_alignment = {y = .CENTER},
+					childAlignment = {y = .CENTER},
 				},
-				color = DEBUG_VIEW_COLOR_2,
+				backgroundColor = DEBUG_VIEW_COLOR_2,
 			},
 			)
-			text("Claydo Debug Tools", info_text_config)
-			{ui()({layout = {sizing = {width = sizing_grow(0)}}})}
+			text("Claydo Debug Tools", infoTextConfig)
+			{ui()({layout = {sizing = {width = sizingGrow(0)}}})}
 			// Close button
 			{ui()(
 				{
 					layout = {
 						sizing = {
-							sizing_fixed(DEBUG_VIEW_ROW_HEIGHT - 10),
-							sizing_fixed(DEBUG_VIEW_ROW_HEIGHT - 10),
+							sizingFixed(DEBUG_VIEW_ROW_HEIGHT - 10),
+							sizingFixed(DEBUG_VIEW_ROW_HEIGHT - 10),
 						},
-						child_alignment = {.CENTER, .CENTER},
+						childAlignment = {.CENTER, .CENTER},
 					},
-					color = {217, 91, 67, 80},
-					corner_radius = corner_radius_all(4),
+					backgroundColor = {217, 91, 67, 80},
+					cornerRadius = cornerRadiusAll(4),
 					border = {color = Color({217, 91, 67, 255} / 255), width = {1, 1, 1, 1, 0}},
 				},
 				)
-				on_hover(handle_debug_view_close_button_interaction, nil)
-				text("x", {text_color = DEBUG_VIEW_COLOR_4, font_size = 16})
+				onHover(handleDebugViewCloseButtonInteraction, nil)
+				text("x", {textColor = DEBUG_VIEW_COLOR_4, fontSize = 16})
 			}
 		}
-		{ui()({layout = {sizing = {sizing_grow(0), sizing_fixed(1)}}, color = DEBUG_VIEW_COLOR_3})}
-		{ui(scroll_id)(
+		{ui()(
 			{
-				layout = {sizing = {sizing_grow(0), sizing_grow(0)}},
-				clip = {horizontal = true, vertical = true, child_offset = get_scroll_offset()},
+				layout = {sizing = {sizingGrow(0), sizingFixed(1)}},
+				backgroundColor = DEBUG_VIEW_COLOR_3,
+			},
+			)}
+		{ui(scrollId)(
+			{
+				layout = {sizing = {sizingGrow(0), sizingGrow(0)}},
+				clip = {horizontal = true, vertical = true, childOffset = getScrollOffset()},
 			},
 			)
 			{ui()(
 				{
-					layout = {
-						sizing = {sizing_grow(0), sizing_grow(0)},
-						direction = .TOP_TO_BOTTOM,
-					},
-					color = ((initial_elements_len + initial_roots_length) & 1) == 0 ? DEBUG_VIEW_COLOR_2 : DEBUG_VIEW_COLOR_1,
+					layout = {sizing = {sizingGrow(0), sizingGrow(0)}, direction = .TOP_TO_BOTTOM},
+					backgroundColor = ((initialElementsLen + initialRootsLength) & 1) == 0 ? DEBUG_VIEW_COLOR_2 : DEBUG_VIEW_COLOR_1,
 				},
 				)
-				panel_contents_id := hash_string("claydo_debug_view_panel_outer", 0)
-				{ui(panel_contents_id)(
+				panelContentsId := hashString("claydoDebugViewPanelOuter", 0)
+				{ui(panelContentsId)(
 					{
-						layout = {sizing = {sizing_grow(0), sizing_grow(0)}},
+						layout = {sizing = {sizingGrow(0), sizingGrow(0)}},
 						floating = {
-							z_idx = 32766,
-							cursor_capture_mode = .PASSTHROUGH,
-							attach_to = .PARENT,
-							clip_to = .ATTACHED_PARENT,
+							zIdx = 32766,
+							pointerCaptureMode = .PASSTHROUGH,
+							attachTo = .PARENT,
+							clipTo = .ATTACHED_PARENT,
 						},
 					},
 					)
 					{ui()(
 						{
 							layout = {
-								sizing = {sizing_grow(0), sizing_grow(0)},
+								sizing = {sizingGrow(0), sizingGrow(0)},
 								padding = {
 									DEBUG_VIEW_OUTER_PADDING,
 									DEBUG_VIEW_OUTER_PADDING,
@@ -3388,39 +3408,38 @@ render_debug_view :: proc() {
 							},
 						},
 						)
-						layout_data = render_debug_layout_elements_list(
-							initial_roots_length,
-							highlighted_row,
+						layoutData = renderDebugLayoutElementsList(
+							initialRootsLength,
+							highlightedRow,
 						)
 					}
 				}
-				content_width :=
-					get_hash_map_item(panel_contents_id.id).layout_element.dimensions.x
+				contentWidth := getHashMapItem(panelContentsId.id).layoutElement.dimensions.x
 				{ui()(
 					{
 						layout = {
-							sizing = {width = sizing_fixed(content_width)},
+							sizing = {width = sizingFixed(contentWidth)},
 							direction = .TOP_TO_BOTTOM,
 						},
 					},
 					)}
-				for i := 0; i < layout_data.row_count; i += 1 {
-					row_color := (i & 1) == 0 ? DEBUG_VIEW_COLOR_2 : DEBUG_VIEW_COLOR_1
-					if (i == layout_data.selected_element_row_idx) {
-						row_color = DEBUG_VIEW_COLOR_SELECTED_ROW
+				for i := 0; i < layoutData.rowCount; i += 1 {
+					rowColor := (i & 1) == 0 ? DEBUG_VIEW_COLOR_2 : DEBUG_VIEW_COLOR_1
+					if (i == layoutData.selectedElementRowIdx) {
+						rowColor = DEBUG_VIEW_COLOR_SELECTED_ROW
 					}
-					if (i == highlighted_row) {
-						row_color.r *= 1.25
-						row_color.g *= 1.25
-						row_color.b *= 1.25
+					if (i == highlightedRow) {
+						rowColor.r *= 1.25
+						rowColor.g *= 1.25
+						rowColor.b *= 1.25
 					}
 					{ui()(
 						{
 							layout = {
-								sizing = {sizing_grow(0), sizing_fixed(DEBUG_VIEW_ROW_HEIGHT)},
+								sizing = {sizingGrow(0), sizingFixed(DEBUG_VIEW_ROW_HEIGHT)},
 								direction = .TOP_TO_BOTTOM,
 							},
-							color = row_color,
+							backgroundColor = rowColor,
 						},
 						)}
 				}
@@ -3428,483 +3447,485 @@ render_debug_view :: proc() {
 		}
 		{ui()(
 			{
-				layout = {sizing = {width = sizing_grow(0), height = sizing_fixed(1)}},
-				color = DEBUG_VIEW_COLOR_3,
+				layout = {sizing = {width = sizingGrow(0), height = sizingFixed(1)}},
+				backgroundColor = DEBUG_VIEW_COLOR_3,
 			},
 			)}
-		if s.debug_selected_element_id != 0 {
-			selected_item := get_hash_map_item(s.debug_selected_element_id)
-			text_config, is_text := selected_item.layout_element.config.(Text_Declaration)
-			config, is_layout := selected_item.layout_element.config.(Element_Declaration)
+		if s.debugSelectedElementId != 0 {
+			selectedItem := getHashMapItem(s.debugSelectedElementId)
+			textConfig, isText := selectedItem.layoutElement.config.(TextDeclaration)
+			config, isLayout := selectedItem.layoutElement.config.(ElementDeclaration)
 			{ui()(
 				{
 					layout = {
-						sizing = {sizing_grow(0), sizing_grow(300)},
+						sizing = {sizingGrow(0), sizingGrow(300)},
 						direction = .TOP_TO_BOTTOM,
 					},
-					color = DEBUG_VIEW_COLOR_2,
-					clip = {vertical = true, child_offset = get_scroll_offset()},
-					border = {color = DEBUG_VIEW_COLOR_3, width = {between_children = 1}},
+					backgroundColor = DEBUG_VIEW_COLOR_2,
+					clip = {vertical = true, childOffset = getScrollOffset()},
+					border = {color = DEBUG_VIEW_COLOR_3, width = {betweenChildren = 1}},
 				},
 				)
 				{ui()(
 					{
 						layout = {
-							sizing = {sizing_grow(0), sizing_grow(DEBUG_VIEW_ROW_HEIGHT + 8)},
+							sizing = {sizingGrow(0), sizingGrow(DEBUG_VIEW_ROW_HEIGHT + 8)},
 							padding = {DEBUG_VIEW_OUTER_PADDING, DEBUG_VIEW_OUTER_PADDING, 0, 0},
-							child_alignment = {y = .CENTER},
+							childAlignment = {y = .CENTER},
 						},
 					},
 					)
-					text("Layout Config", info_text_config)
-					{ui()({layout = {sizing = {width = sizing_grow(0)}}})}
-					if len(selected_item.element_id.string_id) != 0 {
-						text(selected_item.element_id.string_id, info_title_config)
-						if (selected_item.element_id.offset != 0) {
-							text(" (", info_title_config)
-							text(
-								int_to_string(int(selected_item.element_id.offset)),
-								info_title_config,
-							)
-							text(")", info_title_config)
+					text("Element Configuration", infoTextConfig)
+					{ui()({layout = {sizing = {width = sizingGrow(0)}}})}
+					if len(selectedItem.elementId.stringId) != 0 {
+						text(selectedItem.elementId.stringId, infoTitleConfig)
+						if (selectedItem.elementId.offset != 0) {
+							text(" (", infoTitleConfig)
+							text(intToString(int(selectedItem.elementId.offset)), infoTitleConfig)
+							text(")", infoTitleConfig)
 						}
 					}
 				}
-				attribute_config_padding := Padding {
+				attributeConfigPadding := Padding {
 					DEBUG_VIEW_OUTER_PADDING,
 					DEBUG_VIEW_OUTER_PADDING,
 					8,
 					8,
 				}
-				// layout config debug info
-				if is_layout {
+				{ui()(
+					{
+						layout = {
+							padding = attributeConfigPadding,
+							childGap = 8,
+							direction = .TOP_TO_BOTTOM,
+						},
+					},
+					)
 					{ui()(
 						{
-							layout = {
-								padding = attribute_config_padding,
-								child_gap = 8,
-								direction = .TOP_TO_BOTTOM,
-							},
+							layout = {padding = {8, 8, 2, 2}},
+							backgroundColor = {200, 200, 200, 120},
+							cornerRadius = cornerRadiusAll(4),
+							border = {color = {200, 200, 200, 255}, width = {1, 1, 1, 1, 0}},
 						},
 						)
-						text("Bounding Box", info_title_config)
-						{ui()({layout = {direction = .LEFT_TO_RIGHT}})
-							text("{ x: ", info_text_config)
-							text(
-								int_to_string(int(selected_item.bounding_box.x)),
-								info_text_config,
-							)
-							text(", y: ", info_text_config)
-							text(
-								int_to_string(int(selected_item.bounding_box.y)),
-								info_text_config,
-							)
-							text(", width: ", info_text_config)
-							text(
-								int_to_string(int(selected_item.bounding_box.width)),
-								info_text_config,
-							)
-							text(", height: ", info_text_config)
-							text(
-								int_to_string(int(selected_item.bounding_box.height)),
-								info_text_config,
-							)
-							text(" }", info_text_config)
+						text("Layout", {textColor = DEBUG_VIEW_COLOR_4, fontSize = 16})
+					}
+					text("Bounding Box", infoTitleConfig)
+					{ui()({layout = {direction = .LEFT_TO_RIGHT}})
+						text("{ x: ", infoTextConfig)
+						text(intToString(int(selectedItem.boundingBox.x)), infoTextConfig)
+						text(", y: ", infoTextConfig)
+						text(intToString(int(selectedItem.boundingBox.y)), infoTextConfig)
+						text(", width: ", infoTextConfig)
+						text(intToString(int(selectedItem.boundingBox.width)), infoTextConfig)
+						text(", height: ", infoTextConfig)
+						text(intToString(int(selectedItem.boundingBox.height)), infoTextConfig)
+						text(" }", infoTextConfig)
+					}
+					text("Layout Direction", infoTitleConfig)
+					layoutConfig := config.layout
+					text(
+						layoutConfig.direction == .TOP_TO_BOTTOM ? "TOP_TO_BOTTOM" : "LEFT_TO_RIGHT",
+						infoTextConfig,
+					)
+					// sizing
+					text("Sizing", infoTitleConfig)
+					{ui()({layout = {direction = .LEFT_TO_RIGHT}})
+						text("width: ", infoTextConfig)
+						renderDebugLayoutSizing(layoutConfig.sizing.width, infoTextConfig)
+					}
+					{ui()({layout = {direction = .LEFT_TO_RIGHT}})
+						text("height: ", infoTextConfig)
+						renderDebugLayoutSizing(layoutConfig.sizing.height, infoTextConfig)
+					}
+					// padding
+					text("Padding", infoTitleConfig)
+					{ui(id("debugViewElementInfoPadding"))({layout = {direction = .LEFT_TO_RIGHT}})
+						text("{ left: ", infoTextConfig)
+						text(intToString(int(layoutConfig.padding.left)), infoTextConfig)
+						text(", right: ", infoTextConfig)
+						text(intToString(int(layoutConfig.padding.right)), infoTextConfig)
+						text(", top: ", infoTextConfig)
+						text(intToString(int(layoutConfig.padding.top)), infoTextConfig)
+						text(", bottom: ", infoTextConfig)
+						text(intToString(int(layoutConfig.padding.bottom)), infoTextConfig)
+						text(" }", infoTextConfig)
+					}
+					// child gap
+					text("Child Gap", infoTitleConfig)
+					text(intToString(int(layoutConfig.childGap)), infoTextConfig)
+					// child alignment
+					text("Child Alignment", infoTitleConfig)
+					{ui()({layout = {direction = .LEFT_TO_RIGHT}})
+						text("{ x: ", infoTextConfig)
+						alignX := "LEFT"
+						if (layoutConfig.childAlignment.x == .CENTER) {
+							alignX = "CENTER"
+						} else if (layoutConfig.childAlignment.x == .RIGHT) {
+							alignX = "RIGHT"
 						}
-						text("Layout Direction", info_title_config)
-						layout_config := config.layout
-						text(
-							layout_config.direction == .TOP_TO_BOTTOM ? "TOP_TO_BOTTOM" : "LEFT_TO_RIGHT",
-							info_text_config,
-						)
-						// sizing
-						text("Sizing", info_title_config)
-						{ui()({layout = {direction = .LEFT_TO_RIGHT}})
-							text("width: ", info_text_config)
-							render_debug_layout_sizing(
-								layout_config.sizing.width,
-								info_text_config,
-							)
+						text(alignX, infoTextConfig)
+						text(", y: ", infoTextConfig)
+						alignY := "TOP"
+						if (layoutConfig.childAlignment.y == .CENTER) {
+							alignY = "CENTER"
+						} else if (layoutConfig.childAlignment.y == .BOTTOM) {
+							alignY = "BOTTOM"
 						}
-						{ui()({layout = {direction = .LEFT_TO_RIGHT}})
-							text("height: ", info_text_config)
-							render_debug_layout_sizing(
-								layout_config.sizing.height,
-								info_text_config,
-							)
-						}
-						// padding
-						text("Padding", info_title_config)
-						{ui(id("debug_view_element_info_padding"))(
-							{layout = {direction = .LEFT_TO_RIGHT}},
-							)
-							text("{ left: ", info_text_config)
-							text(int_to_string(int(layout_config.padding.left)), info_text_config)
-							text(", right: ", info_text_config)
-							text(int_to_string(int(layout_config.padding.right)), info_text_config)
-							text(", top: ", info_text_config)
-							text(int_to_string(int(layout_config.padding.top)), info_text_config)
-							text(", bottom: ", info_text_config)
-							text(
-								int_to_string(int(layout_config.padding.bottom)),
-								info_text_config,
-							)
-							text(" }", info_text_config)
-						}
-						// child gap
-						text("Child Gap", info_title_config)
-						text(int_to_string(int(layout_config.child_gap)), info_text_config)
-						// child alignment
-						text("Child Alignment", info_title_config)
-						{ui()({layout = {direction = .LEFT_TO_RIGHT}})
-							text("{ x: ", info_text_config)
-							align_x := "LEFT"
-							if (layout_config.child_alignment.x == .CENTER) {
-								align_x = "CENTER"
-							} else if (layout_config.child_alignment.x == .RIGHT) {
-								align_x = "RIGHT"
-							}
-							text(align_x, info_text_config)
-							text(", y: ", info_text_config)
-							align_y := "TOP"
-							if (layout_config.child_alignment.y == .CENTER) {
-								align_y = "CENTER"
-							} else if (layout_config.child_alignment.y == .BOTTOM) {
-								align_y = "BOTTOM"
-							}
-							text(align_y, info_text_config)
-							text(" }", info_text_config)
-						}
+						text(alignY, infoTextConfig)
+						text(" }", infoTextConfig)
 					}
 				}
-				if is_text {
+				if isText {
 					{ui()(
 						{
 							layout = {
-								padding = attribute_config_padding,
-								child_gap = 8,
+								padding = attributeConfigPadding,
+								childGap = 8,
 								direction = .TOP_TO_BOTTOM,
 							},
 						},
 						)
-						// font size
-						text("Font Size", info_title_config)
-						text(int_to_string(int(text_config.config.font_size)), info_text_config)
-						// font_id
-						text("Font ID", info_title_config)
-						text(int_to_string(int(text_config.config.font_id)), info_text_config)
-						// line_height
-						text("Line Height", info_title_config)
+						// fontSize
+						text("Font Size", infoTitleConfig)
+						text(intToString(int(textConfig.config.fontSize)), infoTextConfig)
+						// fontId
+						text("Font ID", infoTitleConfig)
+						text(intToString(int(textConfig.config.fontId)), infoTextConfig)
+						// lineHeight
+						text("Line Height", infoTitleConfig)
 						text(
-							text_config.config.line_height == 0 ? "auto" : int_to_string(int(text_config.config.line_height)),
-							info_text_config,
+							textConfig.config.lineHeight == 0 ? "auto" : intToString(int(textConfig.config.lineHeight)),
+							infoTextConfig,
 						)
 						// spacing
-						text("Letter Spacing", info_title_config)
-						text(int_to_string(int(text_config.config.spacing)), info_text_config)
-						// wrap_mode
-						text("Wrap Mode", info_title_config)
-						wrap_mode := "WORDS"
-						if (text_config.config.wrap_mode == .WRAP_NONE) {
-							wrap_mode = "NONE"
-						} else if (text_config.config.wrap_mode == .WRAP_NEWLINES) {
-							wrap_mode = "NEWLINES"
+						text("Letter Spacing", infoTitleConfig)
+						text(intToString(int(textConfig.config.spacing)), infoTextConfig)
+						// wrapMode
+						text("Wrap Mode", infoTitleConfig)
+						wrapMode := "WORDS"
+						if (textConfig.config.wrapMode == .WRAP_NONE) {
+							wrapMode = "NONE"
+						} else if (textConfig.config.wrapMode == .WRAP_NEWLINES) {
+							wrapMode = "NEWLINES"
 						}
-						text(wrap_mode, text_config.config)
+						text(wrapMode, infoTextConfig)
 						// alignment
-						text("Text Alignment", info_title_config)
-						text_alignment := "LEFT"
-						if (text_config.config.alignment == .CENTER) {
-							text_alignment = "CENTER"
-						} else if (text_config.config.alignment == .RIGHT) {
-							text_alignment = "RIGHT"
+						text("Text Alignment", infoTitleConfig)
+						textAlignment := "LEFT"
+						if (textConfig.config.alignment == .CENTER) {
+							textAlignment = "CENTER"
+						} else if (textConfig.config.alignment == .RIGHT) {
+							textAlignment = "RIGHT"
 						}
-						text(text_alignment, info_text_config)
-						// text_color
-						text("Text Color", info_title_config)
-						render_debug_view_color(text_config.config.text_color, info_text_config)
+						text(textAlignment, infoTextConfig)
+						// textColor
+						text("Text Color", infoTitleConfig)
+						renderDebugViewColor(textConfig.config.textColor, infoTextConfig)
 					}
-				}
-				if is_layout && config.aspect_ratio > 0 {
-					{ui(id("claydo_debug_vie_element_info_aspect_ratio_body"))(
+				} else {
+					{ui(id("Clay__DebugViewElementInfoSharedBody"))(
 						{
 							layout = {
-								padding = attribute_config_padding,
-								child_gap = 8,
+								padding = attributeConfigPadding,
+								childGap = 8,
 								direction = .TOP_TO_BOTTOM,
 							},
 						},
 						)
-						text("Aspect Ratio", info_title_config)
-						// Aspect Ratio
-						{ui(id("claydo_debug_view_element_info_aspect_ratio"))({})
-							text(int_to_string(int(config.aspect_ratio)), info_text_config)
-							text(".", info_text_config)
-							frac := f32(config.aspect_ratio) - f32(int(config.aspect_ratio))
-							frac *= 100
-							if int(frac) < 10 {
-								text("0", info_text_config)
-							}
-							text(int_to_string(int(frac)), info_text_config)
+						labelConfig := debugGetElementConfigTypeLabel(.BACKGROUND_COLOR)
+						backgroundColor := labelConfig.color
+						backgroundColor.a = 90 / 255
+						{ui()(
+							{
+								layout = {padding = {8, 8, 2, 2}},
+								backgroundColor = backgroundColor,
+								cornerRadius = cornerRadiusAll(4),
+								border = {color = labelConfig.color, width = {1, 1, 1, 1, 0}},
+							},
+							)
+							text(
+								"Color & Radius",
+								TextElementConfig{textColor = DEBUG_VIEW_COLOR_4, fontSize = 16},
+							)
+						}
+						// .backgroundColor
+						if config.backgroundColor.a > 0 {
+							text("Background Color", infoTitleConfig)
+							renderDebugViewColor(config.backgroundColor, infoTextConfig)
+						}
+						// .cornerRadius
+						if config.cornerRadius != DEFAULT_CORNER_RADIUS {
+							text("Corner Radius", infoTitleConfig)
+							renderDebugViewCornerRadius(config.cornerRadius, infoTextConfig)
+						}
+						// .overlayColor
+						if config.overlayColor.a > 0 {
+							text("Overlay Color", infoTitleConfig)
+							renderDebugViewColor(config.overlayColor, infoTextConfig)
 						}
 					}
 				}
-				if is_layout && config.image != nil {
-					aspect_config :=
-						config.aspect_ratio > 0 ? config.aspect_ratio : Aspect_Ratio(1)
-					{ui(id("claydo_debug_view_element_info_image_body"))(
+				if isLayout && config.aspectRatio > 0 {
+					{ui(id("claydoDebugViewElementInfoAspectRatioBody"))(
 						{
 							layout = {
-								padding = attribute_config_padding,
-								child_gap = 8,
+								padding = attributeConfigPadding,
+								childGap = 8,
+								direction = .TOP_TO_BOTTOM,
+							},
+						},
+						)
+						text("Aspect Ratio", infoTitleConfig)
+						// Aspect Ratio
+						{ui(id("claydoDebugViewElementInfoAspectRatio"))({})
+							text(intToString(int(config.aspectRatio)), infoTextConfig)
+							text(".", infoTextConfig)
+							frac := f32(config.aspectRatio) - f32(int(config.aspectRatio))
+							frac *= 100
+							if int(frac) < 10 {
+								text("0", infoTextConfig)
+							}
+							text(intToString(int(frac)), infoTextConfig)
+						}
+					}
+				}
+				if isLayout && config.image != nil {
+					aspectConfig := config.aspectRatio > 0 ? config.aspectRatio : AspectRatio(1)
+					{ui(id("claydoDebugViewElementInfoImageBody"))(
+						{
+							layout = {
+								padding = attributeConfigPadding,
+								childGap = 8,
 								direction = .TOP_TO_BOTTOM,
 							},
 						},
 						)
 						// Image Preview
-						text("Preview", info_title_config)
+						text("Preview", infoTitleConfig)
 						{ui()(
 							{
 								layout = {
 									sizing = {
-										width = sizing_grow(64, 128),
-										height = sizing_grow(64, 128),
+										width = sizingGrow(64, 128),
+										height = sizingGrow(64, 128),
 									},
 								},
-								aspect_ratio = aspect_config,
+								aspectRatio = aspectConfig,
 								image = config.image,
 							},
 							)}
 					}
 				}
-				if is_layout && config.floating.attach_to != .NONE {
+				if isLayout && config.floating.attachTo != .NONE {
 					{ui()(
 						{
 							layout = {
-								padding = attribute_config_padding,
-								child_gap = 8,
+								padding = attributeConfigPadding,
+								childGap = 8,
 								direction = .TOP_TO_BOTTOM,
 							},
 						},
 						)
 						// offset
-						text("Offset", info_title_config)
+						text("Offset", infoTitleConfig)
 						{ui()({layout = {direction = .LEFT_TO_RIGHT}})
-							text("{ x: ", info_text_config)
-							text(int_to_string(int(config.floating.offset.x)), info_text_config)
-							text(", y: ", info_text_config)
-							text(int_to_string(int(config.floating.offset.y)), info_text_config)
-							text(" }", info_text_config)
+							text("{ x: ", infoTextConfig)
+							text(intToString(int(config.floating.offset.x)), infoTextConfig)
+							text(", y: ", infoTextConfig)
+							text(intToString(int(config.floating.offset.y)), infoTextConfig)
+							text(" }", infoTextConfig)
 						}
 						// expand
-						text("Expand", info_title_config)
+						text("Expand", infoTitleConfig)
 						{ui()({layout = {direction = .LEFT_TO_RIGHT}})
-							text("{ width: ", info_text_config)
-							text(int_to_string(int(config.floating.expand.x)), info_text_config)
-							text(", height: ", info_text_config)
-							text(int_to_string(int(config.floating.expand.y)), info_text_config)
-							text(" }", info_text_config)
+							text("{ width: ", infoTextConfig)
+							text(intToString(int(config.floating.expand.x)), infoTextConfig)
+							text(", height: ", infoTextConfig)
+							text(intToString(int(config.floating.expand.y)), infoTextConfig)
+							text(" }", infoTextConfig)
 						}
-						// z_idx
-						text("z-index", info_title_config)
-						text(int_to_string(int(config.floating.z_idx)), info_text_config)
-						// parent_id
-						text("Parent", info_title_config)
-						hash_item := get_hash_map_item(config.floating.parent_id)
-						text(hash_item.element_id.string_id, info_text_config)
-						// attach_points
-						text("Attach Points", info_title_config)
+						// zIdx
+						text("z-index", infoTitleConfig)
+						text(intToString(int(config.floating.zIdx)), infoTextConfig)
+						// parentId
+						text("Parent", infoTitleConfig)
+						hashItem := getHashMapItem(config.floating.parentId)
+						text(hashItem.elementId.stringId, infoTextConfig)
+						// attachPoints
+						text("Attach Points", infoTitleConfig)
 						{ui()({layout = {direction = .LEFT_TO_RIGHT}})
-							text("{ element: ", info_text_config)
-							attach_point_element := "LEFT_TOP"
-							if (config.floating.attach_points.element == .LEFT_CENTER) {
-								attach_point_element = "LEFT_CENTER"
-							} else if (config.floating.attach_points.element == .LEFT_BOTTOM) {
-								attach_point_element = "LEFT_BOTTOM"
-							} else if (config.floating.attach_points.element == .CENTER_TOP) {
-								attach_point_element = "CENTER_TOP"
-							} else if (config.floating.attach_points.element == .CENTER_CENTER) {
-								attach_point_element = "CENTER_CENTER"
-							} else if (config.floating.attach_points.element == .CENTER_BOTTOM) {
-								attach_point_element = "CENTER_BOTTOM"
-							} else if (config.floating.attach_points.element == .RIGHT_TOP) {
-								attach_point_element = "RIGHT_TOP"
-							} else if (config.floating.attach_points.element == .RIGHT_CENTER) {
-								attach_point_element = "RIGHT_CENTER"
-							} else if (config.floating.attach_points.element == .RIGHT_BOTTOM) {
-								attach_point_element = "RIGHT_BOTTOM"
+							text("{ element: ", infoTextConfig)
+							attachPointElement := "LEFT_TOP"
+							if (config.floating.attachPoints.element == .LEFT_CENTER) {
+								attachPointElement = "LEFT_CENTER"
+							} else if (config.floating.attachPoints.element == .LEFT_BOTTOM) {
+								attachPointElement = "LEFT_BOTTOM"
+							} else if (config.floating.attachPoints.element == .CENTER_TOP) {
+								attachPointElement = "CENTER_TOP"
+							} else if (config.floating.attachPoints.element == .CENTER_CENTER) {
+								attachPointElement = "CENTER_CENTER"
+							} else if (config.floating.attachPoints.element == .CENTER_BOTTOM) {
+								attachPointElement = "CENTER_BOTTOM"
+							} else if (config.floating.attachPoints.element == .RIGHT_TOP) {
+								attachPointElement = "RIGHT_TOP"
+							} else if (config.floating.attachPoints.element == .RIGHT_CENTER) {
+								attachPointElement = "RIGHT_CENTER"
+							} else if (config.floating.attachPoints.element == .RIGHT_BOTTOM) {
+								attachPointElement = "RIGHT_BOTTOM"
 							}
-							text(attach_point_element, info_text_config)
-							attach_point_parent := "LEFT_TOP"
-							if (config.floating.attach_points.parent == .LEFT_CENTER) {
-								attach_point_parent = "LEFT_CENTER"
-							} else if (config.floating.attach_points.parent == .LEFT_BOTTOM) {
-								attach_point_parent = "LEFT_BOTTOM"
-							} else if (config.floating.attach_points.parent == .CENTER_TOP) {
-								attach_point_parent = "CENTER_TOP"
-							} else if (config.floating.attach_points.parent == .CENTER_CENTER) {
-								attach_point_parent = "CENTER_CENTER"
-							} else if (config.floating.attach_points.parent == .CENTER_BOTTOM) {
-								attach_point_parent = "CENTER_BOTTOM"
-							} else if (config.floating.attach_points.parent == .RIGHT_TOP) {
-								attach_point_parent = "RIGHT_TOP"
-							} else if (config.floating.attach_points.parent == .RIGHT_CENTER) {
-								attach_point_parent = "RIGHT_CENTER"
-							} else if (config.floating.attach_points.parent == .RIGHT_BOTTOM) {
-								attach_point_parent = "RIGHT_BOTTOM"
+							text(attachPointElement, infoTextConfig)
+							attachPointParent := "LEFT_TOP"
+							if (config.floating.attachPoints.parent == .LEFT_CENTER) {
+								attachPointParent = "LEFT_CENTER"
+							} else if (config.floating.attachPoints.parent == .LEFT_BOTTOM) {
+								attachPointParent = "LEFT_BOTTOM"
+							} else if (config.floating.attachPoints.parent == .CENTER_TOP) {
+								attachPointParent = "CENTER_TOP"
+							} else if (config.floating.attachPoints.parent == .CENTER_CENTER) {
+								attachPointParent = "CENTER_CENTER"
+							} else if (config.floating.attachPoints.parent == .CENTER_BOTTOM) {
+								attachPointParent = "CENTER_BOTTOM"
+							} else if (config.floating.attachPoints.parent == .RIGHT_TOP) {
+								attachPointParent = "RIGHT_TOP"
+							} else if (config.floating.attachPoints.parent == .RIGHT_CENTER) {
+								attachPointParent = "RIGHT_CENTER"
+							} else if (config.floating.attachPoints.parent == .RIGHT_BOTTOM) {
+								attachPointParent = "RIGHT_BOTTOM"
 							}
-							text(", parent: ", info_text_config)
-							text(attach_point_parent, info_text_config)
-							text(" }", info_text_config)
+							text(", parent: ", infoTextConfig)
+							text(attachPointParent, infoTextConfig)
+							text(" }", infoTextConfig)
 						}
-						// cursor_capture_mode
-						text("Cursor Capture Mode", info_title_config)
-						cursor_capture_mode := "NONE"
-						if (config.floating.cursor_capture_mode == .PASSTHROUGH) {
-							cursor_capture_mode = "PASSTHROUGH"
+						// pointerCaptureMode
+						text("Pointer Capture Mode", infoTitleConfig)
+						pointerCaptureMode := "NONE"
+						if (config.floating.pointerCaptureMode == .PASSTHROUGH) {
+							pointerCaptureMode = "PASSTHROUGH"
 						}
-						text(cursor_capture_mode, info_text_config)
-						// .attach_to
-						text("Attach To", info_title_config)
-						attach_to := "NONE"
-						if (config.floating.attach_to == .PARENT) {
-							attach_to = "PARENT"
-						} else if (config.floating.attach_to == .ELEMENT_WITH_ID) {
-							attach_to = "ELEMENT_WITH_ID"
-						} else if (config.floating.attach_to == .ROOT) {
-							attach_to = "ROOT"
+						text(pointerCaptureMode, infoTextConfig)
+						// .attachTo
+						text("Attach To", infoTitleConfig)
+						attachTo := "NONE"
+						if (config.floating.attachTo == .PARENT) {
+							attachTo = "PARENT"
+						} else if (config.floating.attachTo == .ELEMENT_WITH_ID) {
+							attachTo = "ELEMENT_WITH_ID"
+						} else if (config.floating.attachTo == .ROOT) {
+							attachTo = "ROOT"
 						}
-						text(attach_to, info_text_config)
-						// clip_to
-						text("Clip To", info_title_config)
-						clip_to := "ATTACHED_PARENT"
-						if (config.floating.clip_to == .NONE) {
-							clip_to = "NONE"
+						text(attachTo, infoTextConfig)
+						// clipTo
+						text("Clip To", infoTitleConfig)
+						clipTo := "ATTACHED_PARENT"
+						if (config.floating.clipTo == .NONE) {
+							clipTo = "NONE"
 						}
-						text(clip_to, info_text_config)
+						text(clipTo, infoTextConfig)
 					}
 				}
-				if is_layout && (config.clip.horizontal || config.clip.vertical) {
+				if isLayout && (config.clip.horizontal || config.clip.vertical) {
 					{ui()(
 						{
 							layout = {
-								padding = attribute_config_padding,
-								child_gap = 8,
+								padding = attributeConfigPadding,
+								childGap = 8,
 								direction = .TOP_TO_BOTTOM,
 							},
 						},
 						)
 						// vertical
-						text("Vertical", info_title_config)
-						text(config.clip.vertical ? "true" : "false", info_text_config)
+						text("Vertical", infoTitleConfig)
+						text(config.clip.vertical ? "true" : "false", infoTextConfig)
 						// horizontal
-						text("Horizontal", info_title_config)
-						text(config.clip.horizontal ? "true" : "false", info_text_config)
+						text("Horizontal", infoTitleConfig)
+						text(config.clip.horizontal ? "true" : "false", infoTextConfig)
 					}
 				}
-				if is_layout && border_has_any_width(&config.border) {
-					{ui(id("claydo_debug_view_element_info_border_body"))(
+				if isLayout && borderHasAnyWidth(&config.border) {
+					{ui(id("claydoDebugViewElementInfoBorderBody"))(
 						{
 							layout = {
-								padding = attribute_config_padding,
-								child_gap = 8,
+								padding = attributeConfigPadding,
+								childGap = 8,
 								direction = .TOP_TO_BOTTOM,
 							},
 						},
 						)
-						text("Border Widths", info_title_config)
+						text("Border Widths", infoTitleConfig)
 						{ui()({layout = {direction = .LEFT_TO_RIGHT}})
-							text("{ left: ", info_text_config)
-							text(int_to_string(int(config.border.width.left)), info_text_config)
-							text(", right: ", info_text_config)
-							text(int_to_string(int(config.border.width.right)), info_text_config)
-							text(", top: ", info_text_config)
-							text(int_to_string(int(config.border.width.top)), info_text_config)
-							text(", bottom: ", info_text_config)
-							text(int_to_string(int(config.border.width.bottom)), info_text_config)
-							text(" }", info_text_config)
+							text("{ left: ", infoTextConfig)
+							text(intToString(int(config.border.width.left)), infoTextConfig)
+							text(", right: ", infoTextConfig)
+							text(intToString(int(config.border.width.right)), infoTextConfig)
+							text(", top: ", infoTextConfig)
+							text(intToString(int(config.border.width.top)), infoTextConfig)
+							text(", bottom: ", infoTextConfig)
+							text(intToString(int(config.border.width.bottom)), infoTextConfig)
+							text(" }", infoTextConfig)
 						}
 						// color
-						text("Border Color", info_title_config)
-						render_debug_view_color(config.border.color, info_text_config)
-					}
-				}
-				if is_layout {
-					{ui()(
-						{
-							layout = {
-								padding = attribute_config_padding,
-								child_gap = 8,
-								direction = .TOP_TO_BOTTOM,
-							},
-						},
-						)
-						text("Background Color", info_title_config)
-						render_debug_view_color(config.border.color, info_text_config)
-						text("Corner Radius", info_title_config)
-						render_debug_view_corner_radius(config.corner_radius, info_text_config)
+						text("Border Color", infoTitleConfig)
+						renderDebugViewColor(config.border.color, infoTextConfig)
 					}
 				}
 			}
 		} else {
-			{ui(id("claydo_debug_view_warnings_scroll_pane"))(
+			{ui(id("claydoDebugViewWarningsScrollPane"))(
 				{
 					layout = {
-						sizing = {sizing_grow(0), sizing_fixed(300)},
-						child_gap = 6,
+						sizing = {sizingGrow(0), sizingFixed(300)},
+						childGap = 6,
 						direction = .TOP_TO_BOTTOM,
 					},
-					color = DEBUG_VIEW_COLOR_2,
-					clip = {
-						horizontal = true,
-						vertical = true,
-						child_offset = get_scroll_offset(),
-					},
+					backgroundColor = DEBUG_VIEW_COLOR_2,
+					clip = {horizontal = true, vertical = true, childOffset = getScrollOffset()},
 				},
 				)
-				warning_config := Text_Element_Config {
-					text_color = DEBUG_VIEW_COLOR_4,
-					font_size  = 16,
-					wrap_mode  = .WRAP_NONE,
+				warningConfig := TextElementConfig {
+					textColor = DEBUG_VIEW_COLOR_4,
+					fontSize  = 16,
+					wrapMode  = .WRAP_NONE,
 				}
-				{ui(id("claydo_debug_view_warning_item_header"))(
+				{ui(id("claydoDebugViewWarningItemHeader"))(
 					{
 						layout = {
-							sizing = {height = sizing_fixed(DEBUG_VIEW_ROW_HEIGHT)},
+							sizing = {height = sizingFixed(DEBUG_VIEW_ROW_HEIGHT)},
 							padding = {DEBUG_VIEW_OUTER_PADDING, DEBUG_VIEW_OUTER_PADDING, 0, 0},
-							child_gap = 8,
-							child_alignment = {y = .CENTER},
+							childGap = 8,
+							childAlignment = {y = .CENTER},
 						},
 					},
 					)
-					text("Warnings", warning_config)
+					text("Warnings", warningConfig)
 				}
-				{ui(id("clay_debug_view_warnings_top_border"))(
+				{ui(id("clayDebugViewWarningsTopBorder"))(
 					{
-						layout = {sizing = {width = sizing_grow(0), height = sizing_fixed(1)}},
-						color = Color({200, 200, 200, 255} / 255),
+						layout = {sizing = {width = sizingGrow(0), height = sizingFixed(1)}},
+						backgroundColor = Color({200, 200, 200, 255} / 255),
 					},
 					)}
-				previous_warnings_length := s.warnings.len
-				for warning, i in array_iter(s.warnings) {
-					{ui(idi("claydo_debug_view_warning_item", u32(i)))(
+				previousWarningsLength := s.warnings.len
+				for warning, i in arrayIter(s.warnings) {
+					{ui(idi("claydoDebugViewWarningItem", u32(i)))(
 						{
 							layout = {
-								sizing = {height = sizing_fixed(DEBUG_VIEW_ROW_HEIGHT)},
+								sizing = {height = sizingFixed(DEBUG_VIEW_ROW_HEIGHT)},
 								padding = {
 									DEBUG_VIEW_OUTER_PADDING,
 									DEBUG_VIEW_OUTER_PADDING,
 									0,
 									0,
 								},
-								child_gap = 8,
-								child_alignment = {y = .CENTER},
+								childGap = 8,
+								childAlignment = {y = .CENTER},
 							},
 						},
 						)
-						text(warning.base_message, warning_config)
-						if (len(warning.dynamic_message) > 0) {
-							text(warning.dynamic_message, warning_config)
+						text(warning.baseMessage, warningConfig)
+						if (len(warning.dynamicMessage) > 0) {
+							text(warning.dynamicMessage, warningConfig)
 						}
 					}
 				}
@@ -3915,36 +3936,37 @@ render_debug_view :: proc() {
 
 // NOTE - PUBLIC API
 
-min_memory_size :: proc() -> uint {
-	fake_context := State {
-		max_element_count                 = s != nil ? s.max_element_count : DEFAULT_MAX_ELEMENT_COUNT,
-		max_measure_text_cache_word_count = s != nil ? s.max_measure_text_cache_word_count : DEFAULT_MAX_MEASURE_TEXT_WORD_CACHE_COUNT,
-		arena_internal                    = virtual.Arena{},
+minMemorySize :: proc() -> uint {
+	fakeContext := State {
+		maxElementCount              = s != nil ? s.maxElementCount : DEFAULT_MAX_ELEMENT_COUNT,
+		maxMeasureTextCacheWordCount = s != nil ? s.maxMeasureTextCacheWordCount : DEFAULT_MAX_MEASURE_TEXT_WORD_CACHE_COUNT,
+		arenaInternal                = virtual.Arena{},
 	}
-	err := virtual.arena_init_static(&fake_context.arena_internal)
-	fake_context.arena = virtual.arena_allocator(&fake_context.arena_internal)
+	reserved := make([]byte, 64 * 1024 * 1024) // Up front allocate 64mb. This will be freed later
+	defer delete(reserved)
+	err := virtual.arena_init_buffer(&fakeContext.arenaInternal, reserved)
+	fakeContext.arena = virtual.arena_allocator(&fakeContext.arenaInternal)
 	if err != nil {
 		return 0
 	}
-	initialize_ephemeral_memory(&fake_context)
-	initialize_persistent_memory(&fake_context)
-	// HACK not sure this is correct
-	min_size := fake_context.arena_internal.total_used
-	free_all(fake_context.arena)
-	return min_size
-	// TODO check for a leak
+	initializeEphemeralMemory(&fakeContext)
+	initializePersistentMemory(&fakeContext)
+	minSize := fakeContext.arenaInternal.total_used
+	free_all(fakeContext.arena)
+	return minSize
 }
 
-create_arena_with_capacity :: proc(cap: uint) -> Arena {
+createArenaWithCapacity :: proc(cap: uint) -> Arena {
 	arena: Arena
-	err := virtual.arena_init_static(&arena, reserved = cap)
+	reserved := make([]byte, cap + 100)
+	err := virtual.arena_init_buffer(&arena, reserved)
 	if err != nil {
-		if s.error_handler.err_proc != nil {
-			s.error_handler.err_proc(
-				Error_Data {
+		if s.errorHandler.errProc != nil {
+			s.errorHandler.errProc(
+				ErrorData {
 					type = .ARENA_CAPACITY_EXCEEDED,
 					text = "Claydo attempted to allocate memory in its arena, but ran out of capacity. Try increasing the capacity of the arena passed to initialize()",
-					user_ptr = s.error_handler.user_ptr,
+					userPtr = s.errorHandler.userPtr,
 				},
 			)
 		}
@@ -3953,522 +3975,825 @@ create_arena_with_capacity :: proc(cap: uint) -> Arena {
 	return arena
 }
 
-set_measure_text_procedure :: proc(
-	procedure: proc(_: string, _: Text_Element_Config, _: rawptr) -> [2]f32,
-	user_ptr: rawptr,
+setMeasureTextProcedure :: proc(
+	procedure: proc(_: string, _: TextElementConfig, _: rawptr) -> [2]f32,
+	userPtr: rawptr,
 ) {
-	s.measure_text = procedure
-	s.measure_text_user_ptr = user_ptr
+	s.measureText = procedure
+	s.measureTextUserPtr = userPtr
 }
 
-set_query_scroll_offset_procedure :: proc(
-	procedure: proc(element_id: u32, user_ptr: rawptr) -> [2]f32,
-	user_ptr: rawptr,
+setQueryScrollOffsetProcedure :: proc(
+	procedure: proc(elementId: u32, userPtr: rawptr) -> [2]f32,
+	userPtr: rawptr,
 ) {
-	s.query_scroll_offset = procedure
-	s.query_scroll_offset_user_ptr = user_ptr
+	s.queryScrollOffset = procedure
+	s.queryScrollOffsetUserPtr = userPtr
 }
 
-set_layout_dimensions :: proc(dimensions: [2]f32) {
-	s.layout_dimensions = dimensions
+setLayoutDimensions :: proc(dimensions: [2]f32) {
+	s.rootResizedLastFrame =
+		!floatEquals(s.layoutDimensions.x, dimensions.x) ||
+		!floatEquals(s.layoutDimensions.y, dimensions.y)
+	s.layoutDimensions = dimensions
+	s.rootResizedLastFrame =
+		!floatEquals(s.layoutDimensions.x, dimensions.x) ||
+		!floatEquals(s.layoutDimensions.y, dimensions.y)
+
 }
 
-set_cursor_state :: proc(position: [2]f32, is_cursor_down: bool) {
-	if s.boolean_warnings.max_elements_exceeded {
+setPointerState :: proc(position: [2]f32, isPointerDown: bool) {
+	if s.booleanWarnings.maxElementsExceeded {
 		return
 	}
-	s.cursor_info.position = position
-	s.cursor_over_ids.len = 0
-	dfs_buffer := s.layout_element_children_buffer
-	for root in array_iter(s.layout_element_tree_roots) {
-		dfs_buffer.len = 0
-		array_push(&dfs_buffer, root.layout_element_idx)
-		s.tree_node_visited.items[0] = false
+	s.pointerInfo.position = position
+	s.pointerOverIds.len = 0
+	dfsBuffer := s.layoutElementChildrenBuffer
+	for root in arrayIter(s.layoutElementTreeRoots) {
+		dfsBuffer.len = 0
+		arrayPush(&dfsBuffer, root.layoutElementIdx)
+		s.treeNodeVisited.items[0] = false
 		found := false
-		for dfs_buffer.len > 0 {
-			if s.tree_node_visited.items[dfs_buffer.len - 1] {
-				dfs_buffer.len -= 1
+		skipTree := false
+		for dfsBuffer.len > 0 {
+			if s.treeNodeVisited.items[dfsBuffer.len - 1] {
+				dfsBuffer.len -= 1
 				continue
 			}
-			s.tree_node_visited.items[dfs_buffer.len - 1] = true
-			current_element := array_get_ptr(
-				&s.layout_elements,
-				array_get(dfs_buffer, dfs_buffer.len - 1),
+			s.treeNodeVisited.items[dfsBuffer.len - 1] = true
+			currentElement := arrayGetPtr(
+				&s.layoutElements,
+				arrayGet(dfsBuffer, dfsBuffer.len - 1),
 			)
-			map_item := get_hash_map_item(current_element.id)
-			clip_element_id := array_get(
-				s.layout_element_clip_element_ids,
-				intrinsics.ptr_sub(current_element, &s.layout_elements.items[0]),
-			)
-			clip_item := get_hash_map_item(u32(clip_element_id))
-			if map_item != nil {
-				element_box := map_item.bounding_box
-				element_box.x -= root.cursor_offset.x
-				element_box.y -= root.cursor_offset.y
-				if point_is_inside_rect(position, element_box) &&
-					   (clip_element_id == 0 ||
-							   point_is_inside_rect(position, clip_item.bounding_box)) ||
-				   s.external_scroll_handling_enabled {
-					if map_item.on_hover_function != nil {
-						map_item.on_hover_function(
-							map_item.element_id,
-							s.cursor_info,
-							map_item.hover_function_user_ptr,
-						)
+			// Skip mouse interactions on an element if it's currently transitioning, based on user config
+			config, isLayout := currentElement.config.(ElementDeclaration)
+			if isLayout && config.transition.handler != nil {
+				for I := 0; I < s.transitionDatas.len; I += 1 {
+					data := arrayGetPtr(&s.transitionDatas, I)
+					if data.elementId == currentElement.id {
+						if config.transition.interactionHandling ==
+						   .DISABLE_INTERACTIONS_WHILE_TRANSITIONING_POSITION {
+							if data.state == .EXITING ||
+							   data.state == .ENTERING ||
+							   ((.Y in data.activeProperties || .X in data.activeProperties) &&
+									   data.state == .TRANSITIONING) {
+								skipTree = true
+							}
+						} else if config.transition.interactionHandling ==
+						   .ALLOW_INTERACTIONS_WHILE_TRANSITIONING_POSITION {
+							if data.state == .EXITING {
+								skipTree = true
+							}
+						}
 					}
-					array_push(&s.cursor_over_ids, map_item.element_id)
+				}
+			}
+			mapItem := getHashMapItem(currentElement.id)
+			clipElementId := arrayGet(
+				s.layoutElementClipElementIds,
+				intrinsics.ptr_sub(currentElement, &s.layoutElements.items[0]),
+			)
+			clipItem := getHashMapItem(u32(clipElementId))
+			if mapItem != nil && mapItem.generation > s.generation {
+				elementBox := mapItem.boundingBox
+				elementBox.x -= root.pointerOffset.x
+				elementBox.y -= root.pointerOffset.y
+				if pointIsInsideRect(position, elementBox) &&
+					   (clipElementId == 0 || pointIsInsideRect(position, clipItem.boundingBox)) ||
+				   s.externalScrollHandlingEnabled {
+					if !skipTree {
+						if mapItem.onHoverFunction != nil {
+							mapItem.onHoverFunction(
+								mapItem.elementId,
+								s.pointerInfo,
+								mapItem.hoverFunctionUserPtr,
+							)
+						}
+						arrayPush(&s.pointerOverIds, mapItem.elementId)
+					}
 					found = true
 				}
-				if _, is_text := current_element.config.(Text_Declaration); is_text {
-					dfs_buffer.len -= 1
+				if _, isText := currentElement.config.(TextDeclaration); skipTree || isText {
+					dfsBuffer.len -= 1
 					continue
 				}
-				#reverse for child in array_iter(current_element.children) {
-					array_push(&dfs_buffer, child)
-					s.tree_node_visited.items[dfs_buffer.len - 1] = false // TODO needs to be range checked
+				#reverse for child in arrayIter(currentElement.children) {
+					arrayPush(&dfsBuffer, child)
+					s.treeNodeVisited.items[dfsBuffer.len - 1] = false // TODO needs to be range checked
 				}
 			} else {
-				dfs_buffer.len -= 1
+				dfsBuffer.len -= 1
 			}
 		}
-		root_element := array_get_ptr(&s.layout_elements, root.layout_element_idx)
-		config, is_layout := root_element.config.(Element_Declaration)
-		if is_layout &&
-		   config.floating.attach_to != .NONE &&
-		   config.floating.cursor_capture_mode == .CAPTURE {
+		rootElement := arrayGetPtr(&s.layoutElements, root.layoutElementIdx)
+		config, isLayout := rootElement.config.(ElementDeclaration)
+		if isLayout &&
+		   config.floating.attachTo != .NONE &&
+		   config.floating.pointerCaptureMode == .CAPTURE {
 			break
 		}
 	}
 
-	if is_cursor_down {
-		if s.cursor_info.state == .PRESSED_THIS_FRAME {
-			s.cursor_info.state = .PRESSED
-		} else if s.cursor_info.state != .PRESSED {
-			s.cursor_info.state = .PRESSED_THIS_FRAME
+	if isPointerDown {
+		if s.pointerInfo.state == .PRESSED_THIS_FRAME {
+			s.pointerInfo.state = .PRESSED
+		} else if s.pointerInfo.state != .PRESSED {
+			s.pointerInfo.state = .PRESSED_THIS_FRAME
 		}
 	} else {
-		if s.cursor_info.state == .RELEASED_THIS_FRAME {
-			s.cursor_info.state = .RELEASED
-		} else if s.cursor_info.state != .RELEASED {
-			s.cursor_info.state = .RELEASED_THIS_FRAME
+		if s.pointerInfo.state == .RELEASED_THIS_FRAME {
+			s.pointerInfo.state = .RELEASED
+		} else if s.pointerInfo.state != .RELEASED {
+			s.pointerInfo.state = .RELEASED_THIS_FRAME
 		}
 	}
 }
 
-default_error_handler_proc :: proc(data: Error_Data) {}
+getPointerState :: proc() -> PointerData {
+	return s.pointerInfo
+}
 
-initialize :: proc(
-	arena: Arena,
-	layout_dimensions: [2]f32,
-	error_handler: Error_Handler,
-) -> ^State {
-	old_s := s
+defaultErrorHandlerProc :: proc(data: ErrorData) {}
+
+initialize :: proc(arena: Arena, layoutDimensions: [2]f32, errorHandler: ErrorHandler) -> ^State {
+	oldS := s
 	s = new(State)
 	s^ = {
-		max_element_count                 = old_s != nil ? old_s.max_element_count : DEFAULT_MAX_ELEMENT_COUNT,
-		max_measure_text_cache_word_count = old_s != nil ? old_s.max_measure_text_cache_word_count : DEFAULT_MAX_MEASURE_TEXT_WORD_CACHE_COUNT,
-		error_handler                     = error_handler.err_proc != nil ? error_handler : Error_Handler{default_error_handler_proc, nil},
-		layout_dimensions                 = layout_dimensions,
-		arena_internal                    = arena,
+		maxElementCount              = oldS != nil ? oldS.maxElementCount : DEFAULT_MAX_ELEMENT_COUNT,
+		maxMeasureTextCacheWordCount = oldS != nil ? oldS.maxMeasureTextCacheWordCount : DEFAULT_MAX_MEASURE_TEXT_WORD_CACHE_COUNT,
+		errorHandler                 = errorHandler.errProc != nil ? errorHandler : ErrorHandler{defaultErrorHandlerProc, nil},
+		layoutDimensions             = layoutDimensions,
+		arenaInternal                = arena,
 	}
-	s.arena = virtual.arena_allocator(&s.arena_internal)
+	s.arena = virtual.arena_allocator(&s.arenaInternal)
 	// TODO what happens when we don't free the old data
-	initialize_persistent_memory(s)
-	s.arena_reset_point = s.arena_internal.total_used
-	initialize_ephemeral_memory(s)
-	for i in 0 ..< s.layout_elements_hash_map.cap {
-		s.layout_elements_hash_map.items[i] = -1
+	initializePersistentMemory(s)
+	s.arenaResetPoint = s.arenaInternal.total_used
+	initializeEphemeralMemory(s)
+	for i in 0 ..< s.layoutElementsHashMap.cap {
+		s.layoutElementsHashMap.items[i] = -1
 	}
-	for i in 0 ..< s.measure_text_hash_map.cap {
-		s.measure_text_hash_map.items[i] = 0
+	for i in 0 ..< s.measureTextHashMap.cap {
+		s.measureTextHashMap.items[i] = 0
 	}
-	s.measure_text_hash_map_internal.len = 1 // reserve 0 to mean "no next element"
-	s.layout_dimensions = layout_dimensions
+	s.measureTextHashMapInternal.len = 1 // reserve 0 to mean "no next element"
+	s.layoutDimensions = layoutDimensions
 	return s
 }
 
-get_scroll_offset :: proc() -> [2]f32 {
-	if s.boolean_warnings.max_elements_exceeded {
+getScrollOffset :: proc() -> [2]f32 {
+	if s.booleanWarnings.maxElementsExceeded {
 		return {}
 	}
-	open_layout_element := get_open_layout_element()
-	if open_layout_element.id == 0 {
-		generate_id_for_anonymous_element(open_layout_element)
-	}
-	for &mapping in array_iter(s.scroll_container_datas) {
-		if mapping.layout_element == open_layout_element {
-			return mapping.scroll_position
+	openLayoutElement := getOpenLayoutElement()
+	for &mapping in arrayIter(s.scrollContainerDatas) {
+		if mapping.layoutElement == openLayoutElement {
+			return mapping.scrollPosition
 		}
 	}
 	return {}
 }
 
-update_scroll_containers :: proc(
-	enable_drag_scrolling: bool,
-	scroll_delta: [2]f32,
-	delta_time: f32,
-) {
-	is_cursor_active :=
-		enable_drag_scrolling &&
-		(s.cursor_info.state == .PRESSED_THIS_FRAME || s.cursor_info.state == .PRESSED)
-	highest_priority_element_idx := -1
-	highest_priority_scroll_data: ^Scroll_Container_Data_Internal
-	for &scroll_data, idx in array_iter(s.scroll_container_datas) {
-		if !scroll_data.open_this_frame {
-			array_swapback(&s.scroll_container_datas, idx)
+updateScrollContainers :: proc(enableDragScrolling: bool, scrollDelta: [2]f32, deltaTime: f32) {
+	isPointerActive :=
+		enableDragScrolling &&
+		(s.pointerInfo.state == .PRESSED_THIS_FRAME || s.pointerInfo.state == .PRESSED)
+	highestPriorityElementIdx := -1
+	highestPriorityScrollData: ^ScrollContainerDataInternal
+	for &scrollData, idx in arrayIter(s.scrollContainerDatas) {
+		if !scrollData.openThisFrame {
+			arraySwapback(&s.scrollContainerDatas, idx)
 			continue
 		}
-		scroll_data.open_this_frame = false
-		hash_map_item := get_hash_map_item(scroll_data.element_id)
+		scrollData.openThisFrame = false
+		hashMapItem := getHashMapItem(scrollData.elementId)
 		// element isn't rendered this frame but scroll offset has been retained
-		if hash_map_item == nil {
-			array_swapback(&s.scroll_container_datas, idx)
+		if hashMapItem == nil {
+			arraySwapback(&s.scrollContainerDatas, idx)
 			continue
 		}
 
 		// touch / click is released
-		if !is_cursor_active && scroll_data.cursor_scroll_active {
-			x_diff := scroll_data.scroll_position.x - scroll_data.scroll_origin.x
-			if x_diff < -10 || x_diff > 10 {
-				scroll_data.scroll_momentum.x =
-					(scroll_data.scroll_position.x - scroll_data.scroll_origin.x) /
-					(scroll_data.momentum_time * 25)
+		if !isPointerActive && scrollData.pointerScrollActive {
+			xDiff := scrollData.scrollPosition.x - scrollData.scrollOrigin.x
+			if xDiff < -10 || xDiff > 10 {
+				scrollData.scrollMomentum.x =
+					(scrollData.scrollPosition.x - scrollData.scrollOrigin.x) /
+					(scrollData.momentumTime * 25)
 			}
-			y_diff := scroll_data.scroll_position.y - scroll_data.scroll_origin.y
-			if y_diff < -10 || y_diff > 10 {
-				scroll_data.scroll_momentum.y =
-					(scroll_data.scroll_position.y - scroll_data.scroll_origin.y) /
-					(scroll_data.momentum_time * 25)
+			yDiff := scrollData.scrollPosition.y - scrollData.scrollOrigin.y
+			if yDiff < -10 || yDiff > 10 {
+				scrollData.scrollMomentum.y =
+					(scrollData.scrollPosition.y - scrollData.scrollOrigin.y) /
+					(scrollData.momentumTime * 25)
 			}
-			scroll_data.cursor_scroll_active = false
-			scroll_data.cursor_origin = {0, 0}
-			scroll_data.scroll_origin = {0, 0}
-			scroll_data.momentum_time = 0
+			scrollData.pointerScrollActive = false
+			scrollData.pointerOrigin = {0, 0}
+			scrollData.scrollOrigin = {0, 0}
+			scrollData.momentumTime = 0
 		}
 
-		scroll_occurred := scroll_delta.x != 0 || scroll_delta.y != 0
-		scroll_data.scroll_position.x += scroll_data.scroll_momentum.x
-		scroll_data.scroll_momentum.x *= 0.95
-		if (scroll_data.scroll_momentum.x > -0.1 && scroll_data.scroll_momentum.x < 0.1) ||
-		   scroll_occurred {
-			scroll_data.scroll_momentum.x = 0
+		scrollOccurred := scrollDelta.x != 0 || scrollDelta.y != 0
+		scrollData.scrollPosition.x += scrollData.scrollMomentum.x
+		scrollData.scrollMomentum.x *= 0.95
+		if (scrollData.scrollMomentum.x > -0.1 && scrollData.scrollMomentum.x < 0.1) ||
+		   scrollOccurred {
+			scrollData.scrollMomentum.x = 0
 		}
-		scroll_data.scroll_position.x = min(
+		scrollData.scrollPosition.x = min(
 			max(
-				scroll_data.scroll_position.x,
-				-max(scroll_data.content_size.x - scroll_data.layout_element.dimensions.x, 0),
+				scrollData.scrollPosition.x,
+				-max(scrollData.contentSize.x - scrollData.layoutElement.dimensions.x, 0),
 			),
 			0,
 		)
 
-		scroll_data.scroll_position.y += scroll_data.scroll_momentum.y
-		scroll_data.scroll_momentum.y *= 0.95
-		if (scroll_data.scroll_momentum.y > -0.1 && scroll_data.scroll_momentum.y < 0.1) ||
-		   scroll_occurred {
-			scroll_data.scroll_momentum.y = 0
+		scrollData.scrollPosition.y += scrollData.scrollMomentum.y
+		scrollData.scrollMomentum.y *= 0.95
+		if (scrollData.scrollMomentum.y > -0.1 && scrollData.scrollMomentum.y < 0.1) ||
+		   scrollOccurred {
+			scrollData.scrollMomentum.y = 0
 		}
-		scroll_data.scroll_position.y = min(
+		scrollData.scrollPosition.y = min(
 			max(
-				scroll_data.scroll_position.y,
-				-max(scroll_data.content_size.y - scroll_data.layout_element.dimensions.y, 0),
+				scrollData.scrollPosition.y,
+				-max(scrollData.contentSize.y - scrollData.layoutElement.dimensions.y, 0),
 			),
 			0,
 		)
-		for j in 0 ..< s.cursor_over_ids.len {
-			if scroll_data.layout_element.id == array_get(s.cursor_over_ids, j).id {
-				highest_priority_element_idx = j
-				highest_priority_scroll_data = &scroll_data
+		for j in 0 ..< s.pointerOverIds.len {
+			if scrollData.layoutElement.id == arrayGet(s.pointerOverIds, j).id {
+				highestPriorityElementIdx = j
+				highestPriorityScrollData = &scrollData
 			}
 		}
 	}
-	if highest_priority_element_idx > -1 && highest_priority_scroll_data != nil {
-		scroll_element := highest_priority_scroll_data.layout_element
-		clip_config := scroll_element.config.(Element_Declaration).clip
-		can_scroll_vertically :=
-			clip_config.vertical &&
-			highest_priority_scroll_data.content_size.y > scroll_element.dimensions.y
-		can_scroll_horizontally :=
-			clip_config.horizontal &&
-			highest_priority_scroll_data.content_size.x > scroll_element.dimensions.x
+	if highestPriorityElementIdx > -1 && highestPriorityScrollData != nil {
+		scrollElement := highestPriorityScrollData.layoutElement
+		clipConfig := scrollElement.config.(ElementDeclaration).clip
+		canScrollVertically :=
+			clipConfig.vertical &&
+			highestPriorityScrollData.contentSize.y > scrollElement.dimensions.y
+		canScrollHorizontally :=
+			clipConfig.horizontal &&
+			highestPriorityScrollData.contentSize.x > scrollElement.dimensions.x
 		// handle wheel scroll
-		if can_scroll_vertically {
-			highest_priority_scroll_data.scroll_position.y =
-				highest_priority_scroll_data.scroll_position.y + scroll_delta.y * 10
+		if canScrollVertically {
+			highestPriorityScrollData.scrollPosition.y =
+				highestPriorityScrollData.scrollPosition.y + scrollDelta.y * 10
 		}
-		if can_scroll_horizontally {
-			highest_priority_scroll_data.scroll_position.x =
-				highest_priority_scroll_data.scroll_position.x + scroll_delta.x * 10
+		if canScrollHorizontally {
+			highestPriorityScrollData.scrollPosition.x =
+				highestPriorityScrollData.scrollPosition.x + scrollDelta.x * 10
 		}
 		// handle click / touch scroll
-		if is_cursor_active {
-			highest_priority_scroll_data.scroll_momentum = {}
-			if !highest_priority_scroll_data.cursor_scroll_active {
-				highest_priority_scroll_data.cursor_origin = s.cursor_info.position
-				highest_priority_scroll_data.scroll_origin =
-					highest_priority_scroll_data.scroll_position
-				highest_priority_scroll_data.cursor_scroll_active = true
+		if isPointerActive {
+			highestPriorityScrollData.scrollMomentum = {}
+			if !highestPriorityScrollData.pointerScrollActive {
+				highestPriorityScrollData.pointerOrigin = s.pointerInfo.position
+				highestPriorityScrollData.scrollOrigin = highestPriorityScrollData.scrollPosition
+				highestPriorityScrollData.pointerScrollActive = true
 			} else {
-				scroll_delta_x: f32 = 0
-				scroll_delta_y: f32 = 0
-				if can_scroll_horizontally {
-					old_x_scroll_position := highest_priority_scroll_data.scroll_position.x
-					highest_priority_scroll_data.scroll_position.x =
-						highest_priority_scroll_data.scroll_origin.x +
-						s.cursor_info.position.x -
-						highest_priority_scroll_data.cursor_origin.x
-					highest_priority_scroll_data.scroll_position.x = max(
-						min(highest_priority_scroll_data.scroll_position.x, 0),
-						-highest_priority_scroll_data.content_size.x +
-						highest_priority_scroll_data.bounding_box.x,
+				scrollDeltaX: f32 = 0
+				scrollDeltaY: f32 = 0
+				if canScrollHorizontally {
+					oldX_scrollPosition := highestPriorityScrollData.scrollPosition.x
+					highestPriorityScrollData.scrollPosition.x =
+						highestPriorityScrollData.scrollOrigin.x +
+						s.pointerInfo.position.x -
+						highestPriorityScrollData.pointerOrigin.x
+					highestPriorityScrollData.scrollPosition.x = max(
+						min(highestPriorityScrollData.scrollPosition.x, 0),
+						-highestPriorityScrollData.contentSize.x +
+						highestPriorityScrollData.boundingBox.x,
 					)
-					scroll_delta_x =
-						highest_priority_scroll_data.scroll_position.x - old_x_scroll_position
+					scrollDeltaX = highestPriorityScrollData.scrollPosition.x - oldX_scrollPosition
 				}
-				if can_scroll_vertically {
-					old_y_scroll_position := highest_priority_scroll_data.scroll_position.y
-					highest_priority_scroll_data.scroll_position.y =
-						highest_priority_scroll_data.scroll_origin.y +
-						s.cursor_info.position.y -
-						highest_priority_scroll_data.cursor_origin.y
-					highest_priority_scroll_data.scroll_position.y = max(
-						min(highest_priority_scroll_data.scroll_position.y, 0),
-						-highest_priority_scroll_data.content_size.y +
-						highest_priority_scroll_data.bounding_box.y,
+				if canScrollVertically {
+					oldY_scrollPosition := highestPriorityScrollData.scrollPosition.y
+					highestPriorityScrollData.scrollPosition.y =
+						highestPriorityScrollData.scrollOrigin.y +
+						s.pointerInfo.position.y -
+						highestPriorityScrollData.pointerOrigin.y
+					highestPriorityScrollData.scrollPosition.y = max(
+						min(highestPriorityScrollData.scrollPosition.y, 0),
+						-highestPriorityScrollData.contentSize.y +
+						highestPriorityScrollData.boundingBox.y,
 					)
-					scroll_delta_y =
-						highest_priority_scroll_data.scroll_position.x - old_y_scroll_position
+					scrollDeltaY = highestPriorityScrollData.scrollPosition.x - oldY_scrollPosition
 				}
-				if scroll_delta_x > -0.1 &&
-				   scroll_delta_x < 0.1 &&
-				   scroll_delta_y > -0.1 &&
-				   scroll_delta_y < 0.1 &&
-				   highest_priority_scroll_data.momentum_time > 0.15 {
-					highest_priority_scroll_data.momentum_time = 0
-					highest_priority_scroll_data.cursor_origin = s.cursor_info.position
-					highest_priority_scroll_data.scroll_origin =
-						highest_priority_scroll_data.scroll_position
+				if scrollDeltaX > -0.1 &&
+				   scrollDeltaX < 0.1 &&
+				   scrollDeltaY > -0.1 &&
+				   scrollDeltaY < 0.1 &&
+				   highestPriorityScrollData.momentumTime > 0.15 {
+					highestPriorityScrollData.momentumTime = 0
+					highestPriorityScrollData.pointerOrigin = s.pointerInfo.position
+					highestPriorityScrollData.scrollOrigin =
+						highestPriorityScrollData.scrollPosition
 				} else {
-					highest_priority_scroll_data.momentum_time += delta_time
+					highestPriorityScrollData.momentumTime += deltaTime
 				}
 			}
 		}
 		// clamp any changes to scroll position to the maximum size of the contents
-		if can_scroll_vertically {
-			highest_priority_scroll_data.scroll_position.y = max(
-				min(highest_priority_scroll_data.scroll_position.y, 0),
-				-highest_priority_scroll_data.content_size.y + scroll_element.dimensions.y,
+		if canScrollVertically {
+			highestPriorityScrollData.scrollPosition.y = max(
+				min(highestPriorityScrollData.scrollPosition.y, 0),
+				-highestPriorityScrollData.contentSize.y + scrollElement.dimensions.y,
 			)
 		}
-		if can_scroll_horizontally {
-			highest_priority_scroll_data.scroll_position.x = max(
-				min(highest_priority_scroll_data.scroll_position.x, 0),
-				-highest_priority_scroll_data.content_size.x + scroll_element.dimensions.x,
+		if canScrollHorizontally {
+			highestPriorityScrollData.scrollPosition.x = max(
+				min(highestPriorityScrollData.scrollPosition.x, 0),
+				-highestPriorityScrollData.contentSize.x + scrollElement.dimensions.x,
 			)
 		}
 	}
 }
 
-begin_layout :: proc() {
-	initialize_ephemeral_memory(s)
+beginLayout :: proc() {
+	initializeEphemeralMemory(s)
 	s.generation += 1
-	s.dynamic_element_idx = 0
-	root_dimensions: [2]f32 = {s.layout_dimensions.x, s.layout_dimensions.y}
-	if s.debug_mode_enabled {
-		root_dimensions.x -= DEBUG_VIEW_WIDTH
+	s.dynamicElementIdx = 0
+	rootDimensions: [2]f32 = {s.layoutDimensions.x, s.layoutDimensions.y}
+	if s.debugModeEnabled {
+		rootDimensions.x -= DEBUG_VIEW_WIDTH
 	}
-	s.boolean_warnings = {}
-	open_element_with_id(id("claydo_root_container"))
-	configure_open_element(
-		Element_Declaration {
+	s.booleanWarnings = {}
+	openElementWithId(id("Clay__RootContainer"))
+	configureOpenElement(
+		ElementDeclaration {
 			layout = {
 				sizing = {
-					width = Sizing_Axis {
-						.FIXED,
-						Sizing_Min_Max{root_dimensions.x, root_dimensions.x},
-					},
-					height = Sizing_Axis {
-						.FIXED,
-						Sizing_Min_Max{root_dimensions.y, root_dimensions.y},
-					},
+					width = SizingAxis{.FIXED, SizingMinMax{rootDimensions.x, rootDimensions.x}},
+					height = SizingAxis{.FIXED, SizingMinMax{rootDimensions.y, rootDimensions.y}},
 				},
 			},
 		},
 	)
-	array_push(&s.open_layout_element_stack, 0)
-	array_push(&s.layout_element_tree_roots, Layout_Element_Tree_Root{layout_element_idx = 0})
+	arrayPush(&s.openLayoutElementStack, 0)
+	arrayPush(&s.layoutElementTreeRoots, LayoutElementTreeRoot{layoutElementIdx = 0})
 }
 
-end_layout :: proc(delta_time: f32) -> []Render_Command {
-	close_element() // close the root element
-	element_exceeded_before_debug_view := s.boolean_warnings.max_elements_exceeded
-	if s.debug_mode_enabled && !element_exceeded_before_debug_view {
-		s.warnings_enabled = false
-		render_debug_view()
-		s.warnings_enabled = true
-	}
-	if s.boolean_warnings.max_elements_exceeded {
-		message: string
-		if !element_exceeded_before_debug_view {
-			message = "Claydo Error: Layout elements exceeded max_element_count after adding the debug-view to the layout."
-		} else {
-			message = "Claydo Error: Layout elements exceeded max_element_count"
+endLayout :: proc(deltaTime: f32) -> []RenderCommand {
+	closeElement() // close the root element
+	s := s
+	// Begin transition section
+	for i := 0; i < s.transitionDatas.len; i += 1 {
+		data := arrayGetPtr(&s.transitionDatas, i)
+		hashMapItem := getHashMapItem(data.elementId)
+		// This might seems strange - can't we just look up the element itself, and check the config to see whether it has an exit transition defined?
+		// That would work fine if the element actually had an exit transition in the first place. If it doesn't have an exit transition defined, the element
+		// will have simply disappeared completely at this point, and there will be no element through which to access the config.
+		if data.transitionOut {
+			config, isLayout := &(data.elementThisFrame.config.(ElementDeclaration))
+			// Element wasn't found this frame - either delete transition data or transition out
+			if hashMapItem.generation <= s.generation {
+				parentHashMapItem := getHashMapItem(data.parentId)
+				// Don't exit transition if the parent has also exited and SKIP_WHEN_PARENT_EXITS is used
+				if isLayout &&
+				   (config.transition.exit.trigger == .TRIGGER_WHEN_PARENT_EXITS ||
+						   parentHashMapItem == nil ||
+						   parentHashMapItem.generation > s.generation) {
+					if data.state != .EXITING {
+						if parentHashMapItem.generation <= s.generation {
+							config.floating.attachTo = .ROOT
+							config.floating.offset = [2]f32 {
+								hashMapItem.boundingBox.x,
+								hashMapItem.boundingBox.y,
+							}
+						}
+						data.elementThisFrame.exiting = true
+						config.layout.sizing.width = sizingFixed(
+							data.elementThisFrame.dimensions.x,
+						)
+						config.layout.sizing.height = sizingFixed(
+							data.elementThisFrame.dimensions.y,
+						)
+						data.state = .EXITING
+						data.activeProperties = config.transition.properties
+						data.elapsedTime = 0
+						data.targetState = config.transition.exit.setFinalState(
+							data.targetState,
+							config.transition.properties,
+						)
+					}
+					// Clone the entire subtree back into the main UI layout tree
+					bfsBuffer := s.openLayoutElementStack
+					bfsBuffer.len = 0
+					data.elementThisFrame = arrayPush(&s.layoutElements, data.elementThisFrame^)
+					exitingElementIndex := intrinsics.ptr_sub(
+						data.elementThisFrame,
+						&s.layoutElements.items[0],
+					)
+
+					arrayPush(
+						&s.layoutElementIdStrings,
+						arrayGet(s.layoutElementIdStrings, exitingElementIndex),
+					)
+					arrayPush(
+						&s.layoutElementClipElementIds,
+						arrayGet(s.layoutElementClipElementIds, exitingElementIndex),
+					)
+					arrayPush(&bfsBuffer, exitingElementIndex)
+					hashMapItem.layoutElement = data.elementThisFrame
+					hashMapItem.generation = s.generation + 1
+					bufferIndex := 0
+					for bufferIndex < bfsBuffer.len {
+						layoutElement := arrayGetPtr(
+							&s.layoutElements,
+							arrayGet(bfsBuffer, bufferIndex),
+						)
+						bufferIndex += 1
+						firstChildSlot := s.layoutElementChildren.len
+						for layoutChildIdx in arrayIter(layoutElement.children) {
+							childElement := arrayGetPtr(&s.layoutElements, layoutChildIdx)
+							childElementIndex := intrinsics.ptr_sub(
+								childElement,
+								&(s.layoutElements.items[0]),
+							)
+							newChildElement := arrayPush(&s.layoutElements, childElement^)
+							arrayPush(
+								&s.layoutElementIdStrings,
+								arrayGet(s.layoutElementIdStrings, childElementIndex),
+							)
+							arrayPush(
+								&s.layoutElementClipElementIds,
+								arrayGet(s.layoutElementClipElementIds, childElementIndex),
+							)
+
+							arrayPush(&bfsBuffer, s.layoutElements.len - 1)
+							textConfig, isText := &(newChildElement.config.(TextDeclaration))
+							if isText {
+								textConfig.data.wrappedLines.len = 0
+							}
+							arrayPush(&s.layoutElementChildren, s.layoutElements.len - 1)
+						}
+						layoutElement.children.items = s.layoutElementChildren.items[firstChildSlot:]
+						layoutElement.children.cap = s.layoutElementChildren.cap - firstChildSlot
+					}
+
+					// Reattach the inserted subtree to its previous parent if it still exists
+					if parentHashMapItem.generation > s.generation {
+						parentElement := parentHashMapItem.layoutElement
+						newChildrenStartIndex := s.layoutElementChildren.len
+						found := false
+						if config.transition.exit.siblingOrdering == .UNDERNEATH_SIBLINGS {
+							arrayPush(&s.layoutElementChildren, exitingElementIndex)
+							found = true
+						}
+						for j := 0; j < parentElement.children.len; j += 1 {
+							if config.transition.exit.siblingOrdering == .NATURAL_ORDER &&
+							   u32(j) == data.siblingIdx {
+								arrayPush(&s.layoutElementChildren, exitingElementIndex)
+								found = true
+							}
+							arrayPush(&s.layoutElementChildren, parentElement.children.items[j])
+						}
+						if !found {
+							arrayPush(&s.layoutElementChildren, exitingElementIndex)
+						}
+						parentElement.children.len += 1
+						parentElement.children.items = s.layoutElementChildren.items[newChildrenStartIndex:]
+						parentElement.children.cap =
+							s.layoutElementChildren.cap - newChildrenStartIndex
+					} else {
+						arrayPush(
+							&s.layoutElementTreeRoots,
+							LayoutElementTreeRoot {
+								layoutElementIdx = intrinsics.ptr_sub(
+									data.elementThisFrame,
+									&s.layoutElements.items[0],
+								),
+								parentId = hashString("Clay__RootContainer", 0).id,
+								zIdx = 1,
+							},
+						)
+					}
+					// Parent exited, just delete child without exit transition
+				} else {
+					arraySwapback(&s.transitionDatas, i)
+					i -= 1
+					continue
+				}
+			}
+			// Transition element exited and doesn't have an exit handler defined, delete the transition data
+		} else if (hashMapItem.generation <= s.generation) {
+			arraySwapback(&s.transitionDatas, i)
+			i -= 1
+			continue
 		}
-		push_render_command(
-			Render_Command {
-				// HACK what is this -59*4 thing???ß
-				bounding_box = {
-					s.layout_dimensions.x / 2.0 - 59 * 4,
-					s.layout_dimensions.y / 2.0,
+	}
+
+	// End transition section
+	if s.booleanWarnings.maxElementsExceeded {
+		message := "Claydo Error: Layout elements exceeded maxElementCount"
+		pushRenderCommand(
+			RenderCommand {
+				// what is this -59*4 thing???ß
+				boundingBox = {
+					s.layoutDimensions.x / 2.0 - 59 * 4,
+					s.layoutDimensions.y / 2.0,
 					0,
 					0,
 				},
-				render_data = Text_Render_Data {
+				renderData = TextRenderData {
 					text = message,
 					color = Color({255, 0, 0, 255} / 255),
-					font_size = 16,
+					fontSize = 16,
 				},
 				type = .TEXT,
 			},
 		)
 	} else {
-		transition_out_waiting_count := 0
-		for &data in array_iter(s.transition_datas) {
-			all_config, is_layout := data.element_this_frame.config.(Element_Declaration)
-			if is_layout && all_config.transition.on_begin_exit != nil {
-				config := all_config.transition
-				hash_map_item := get_hash_map_item(data.element_id)
-				if hash_map_item.generation == s.generation {
-					if data.state != .EXITING {
-						(&data.element_this_frame.config.(Element_Declaration)).floating.attach_to = .INLINE
-						(&data.element_this_frame.config.(Element_Declaration)).layout.sizing.width =
-							sizing_fixed(data.element_this_frame.dimensions.x)
-						(&data.element_this_frame.config.(Element_Declaration)).layout.sizing.height =
-							sizing_fixed(data.element_this_frame.dimensions.y)
-						data.state = .EXITING
-						data.elapsed_time = 0
-						data.target_state = config.on_begin_exit(data.target_state)
+		// Start Transition 2
+		if s.transitionDatas.len > 0 {
+			calculateFinalLayout(deltaTime, false, false)
+			for i := 0; i < s.transitionDatas.len; i += 1 {
+				transitionData := arrayGetPtr(&s.transitionDatas, i)
+				currentElement := transitionData.elementThisFrame
+				config := &(currentElement.config.(ElementDeclaration))
+				mapItem := getHashMapItem(transitionData.elementId)
+				parentMapItem := getHashMapItem(transitionData.parentId)
+				targetState := transitionData.targetState
+				if transitionData.state != .EXITING {
+					targetState = TransitionData {
+						mapItem.boundingBox,
+						config.backgroundColor,
+						config.overlayColor,
+						config.border.color,
+						config.border.width,
 					}
 				}
-				bfs_buffer := s.open_layout_element_stack
-				bfs_buffer.len = 0
-				array_push(
-					&bfs_buffer,
-					intrinsics.ptr_sub(data.element_this_frame, &s.layout_elements.items[0]),
-				)
-				buffer_idx := 0
-				for buffer_idx < bfs_buffer.len {
-					layout_element := s.layout_elements.items[array_get(bfs_buffer, buffer_idx)]
-					buffer_idx += 1
-					for child in array_iter(layout_element.children) {
-						array_push(&bfs_buffer, child)
+				oldTargetState := transitionData.targetState
+				transitionData.targetState = targetState
+				if mapItem.appearedThisFrame {
+					if config.transition.enter.setInitialState != nil &&
+					   !(parentMapItem.appearedThisFrame &&
+							   config.transition.enter.trigger == .SKIP_ON_FIRST_PARENT_FRAME) {
+						transitionData.state = .ENTERING
+						transitionData.initialState = config.transition.enter.setInitialState(
+							transitionData.targetState,
+							config.transition.properties,
+						)
+						transitionData.currentState = transitionData.initialState
+						applyTransitionedPropertiesToElement(
+							currentElement,
+							config.transition.properties,
+							transitionData.initialState,
+							&mapItem.boundingBox,
+							transitionData.reparented,
+						)
+					} else {
+						transitionData.initialState = targetState
+						transitionData.currentState = targetState
 					}
 				} else {
-					newRelativePosition := [2]f32{mapItem->boundingBox.x, mapItem->boundingBox.y}
-			
-					newRelativePosition.x -= parentMapItem.boundingBox.x
-					newRelativePosition.y -= parentMapItem.boundingBox.y
+					parentConfig := &(parentMapItem.layoutElement.config.(ElementDeclaration))
+					parentScrollOffset := parentConfig.clip.childOffset
+					newRelativePosition := [2]f32 {
+						mapItem.boundingBox.x - parentMapItem.boundingBox.x - parentScrollOffset.x,
+						mapItem.boundingBox.y - parentMapItem.boundingBox.y - parentScrollOffset.y,
+					}
+					oldRelativePosition := transitionData.oldParentRelativePosition
+					transitionData.oldParentRelativePosition = newRelativePosition
+
 					properties := config.transition.properties
-					activeProperties := {TransitionProperty.NONE}
+					activeProperties: bit_set[TransitionProperty] = {}
 					if .X in properties {
 						if !floatEquals(oldTargetState.boundingBox.x, targetState.boundingBox.x) &&
+						   !floatEquals(oldRelativePosition.x, newRelativePosition.x) &&
 						   !s.rootResizedLastFrame {
-							activeProperties |= .X
+							activeProperties += {.X}
 						}
 					}
-					if .Y in properites {
-						if !floatEqual(oldTargetState.boundingBox.y, targetState.boundingBox.y) &&
+					if .Y in properties {
+						if !floatEquals(oldTargetState.boundingBox.y, targetState.boundingBox.y) &&
+						   !floatEquals(oldRelativePosition.y, newRelativePosition.y) &&
 						   !s.rootResizedLastFrame {
-							activeProperties |= .Y
+							activeProperties += {.Y}
 						}
 					}
 					if .WIDTH in properties {
-						if !floatEqual(
+						if !floatEquals(
 							   oldTargetState.boundingBox.width,
 							   targetState.boundingBox.width,
 						   ) &&
-						   !context.rootResizedLastFrame {
-							activeProperties |= .WIDTH
+						   !s.rootResizedLastFrame {
+							activeProperties |= {.WIDTH}
 						}
 					}
 					if .HEIGHT in properties {
-						if !floatEqual(
+						if !floatEquals(
 							   oldTargetState.boundingBox.height,
 							   targetState.boundingBox.height,
 						   ) &&
 						   !s.rootResizedLastFrame {
-							activeProperties |= .HEIGHT
+							activeProperties += {.HEIGHT}
 						}
 					}
 					if .BACKGROUND_COLOR in properties {
-						if oldTargetState.backgroundColor != targetState.backgroundColor {
-							activeProperties |= .BACKGROUND_COLOR
+						if oldTargetState.color != targetState.color {
+							activeProperties += {.BACKGROUND_COLOR}
 						}
 					}
 					if .OVERLAY_COLOR in properties {
 						if oldTargetState.overlayColor != targetState.overlayColor {
-							activeProperties |= .OVERLAY_COLOR
+							activeProperties += {.OVERLAY_COLOR}
 						}
 					}
 					if .BORDER_COLOR in properties {
 						if oldTargetState.borderColor != targetState.borderColor {
-							activeProperties |= .BORDER_COLOR
+							activeProperties += {.BORDER_COLOR}
 						}
-						if .BORDER_WIDTH in properties {
-							if oldTargetState.borderWidth != targetState.borderWidth {
-								activeProperties |= .BORDER_WIDTH
+					}
+					if .BORDER_WIDTH in properties {
+						if oldTargetState.borderWidth != targetState.borderWidth {
+							activeProperties += {.BORDER_WIDTH}
+						}
+					}
+
+					if activeProperties != {} && transitionData.state != .EXITING {
+						transitionData.elapsedTime = 0
+						transitionData.initialState = transitionData.currentState
+						transitionData.state = .TRANSITIONING
+						transitionData.activeProperties = activeProperties
+					}
+
+					if transitionData.state == .IDLE {
+						transitionData.initialState = targetState
+						transitionData.currentState = targetState
+						transitionData.targetState = targetState
+					} else {
+						transitionComplete := true
+						transitionComplete = config.transition.handler(
+							TransitionCallbackArguments {
+								transitionData.state,
+								transitionData.initialState,
+								&transitionData.currentState,
+								targetState,
+								transitionData.elapsedTime,
+								config.transition.duration,
+								config.transition.properties,
+							},
+						)
+						applyTransitionedPropertiesToElement(
+							currentElement,
+							config.transition.properties,
+							transitionData.currentState,
+							&mapItem.boundingBox,
+							transitionData.reparented,
+						)
+						transitionData.elapsedTime += deltaTime
+
+						if transitionComplete {
+							if transitionData.state == .ENTERING ||
+							   transitionData.state == .TRANSITIONING {
+								transitionData.state = .IDLE
+								transitionData.elapsedTime = 0
+								transitionData.reparented = false
+								transitionData.activeProperties = {}
+							} else if transitionData.state == .EXITING {
+								arraySwapback(&s.transitionDatas, i)
+
 							}
 						}
+					}
+				}
+			}
 
-		root_idx := s.layout_elements.len
-		root_child_idx := s.layout_element_children.len
+			if (s.debugModeEnabled) {
+				s.warningsEnabled = false
+				renderDebugView()
+				s.warningsEnabled = true
+			}
 
-		exiting_elements_count := clone_transition_elements(root_idx, root_child_idx, true)
 
-		s.exiting_elements_length = exiting_elements_count.elements_added
-		s.exiting_elements_children_length = exiting_elements_count.element_children_added
+			if s.booleanWarnings.maxElementsExceeded {
+				message := "Clay Error: Debug view caused layout element count to exceed Clay__maxElementCount"
+				pushRenderCommand(
+					RenderCommand {
+						boundingBox = {
+							s.layoutDimensions.x / 2 - 59 * 4,
+							s.layoutDimensions.y / 2,
+							0,
+							0,
+						},
+						renderData = TextRenderData {
+							text = message,
+							color = ({255, 0, 0, 255} / 255),
+							fontSize = 16,
+						},
+						type = .TEXT,
+					},
+				)
+			} else {
+				calculateFinalLayout(deltaTime, true, true)
+				cloneElementsWithExitTransition()
+			}
+		} else {
+			if s.debugModeEnabled {
+				s.warningsEnabled = false
+				renderDebugView()
+				s.warningsEnabled = true
+			}
 
-		s.layout_elements.len += s.exiting_elements_length
-		s.layout_element_children.len += s.exiting_elements_children_length
-		s.layout_element_clip_element_ids.len += s.exiting_elements_length
-
-		calculate_final_layout(delta_time)
-
-		// TODO why does original implementation use - transition_out_waiting_count
-		root_idx = s.layout_elements.len // - transition_out_waiting_count
-		root_child_idx = s.layout_element_children.len // - transition_out_waiting_count
-
-		clone_transition_elements(root_idx, root_child_idx, false)
+			if s.booleanWarnings.maxElementsExceeded {
+				message := "Clay Error: Debug view caused layout element count to exceed Clay__maxElementCount"
+				pushRenderCommand(
+					RenderCommand {
+						boundingBox = {
+							s.layoutDimensions.x / 2 - 59 * 4,
+							s.layoutDimensions.y / 2,
+							0,
+							0,
+						},
+						renderData = TextRenderData {
+							text = message,
+							color = ({255, 0, 0, 255} / 255),
+							fontSize = 16,
+						},
+						type = .TEXT,
+					},
+				)
+			} else {
+				calculateFinalLayout(deltaTime, false, true)
+			}
+		}
+		// End Transition 2
 	}
-	if s.open_layout_element_stack.len > 1 {
-		s.error_handler.err_proc(
-			Error_Data {
+	if s.openLayoutElementStack.len > 1 {
+		s.errorHandler.errProc(
+			ErrorData {
 				type = .UNBALANCED_OPEN_CLOSE,
-				text = "There were still open layout elements when end_layout was called. This results from an unequal number of calls to open_element and close_element.",
-				user_ptr = s.error_handler.user_ptr,
+				text = "There were still open layout elements when endLayout was called. This results from an unequal number of calls to openElement and closeElement.",
+				userPtr = s.errorHandler.userPtr,
 			},
 		)
 	}
-	return s.render_commands.items[:s.render_commands.len]
+	return s.renderCommands.items[:s.renderCommands.len]
 }
 
-get_element_id :: proc(id_string: string) -> Element_ID {
-	return hash_string(id_string, 0)
+applyTransitionedPropertiesToElement :: proc(
+	currentElement: ^LayoutElement,
+	properties: bit_set[TransitionProperty],
+	currentTransitionData: TransitionData,
+	boundingBox: ^BoundingBox,
+	reparented: bool,
+) {
+	config, isLayout := &(currentElement.config.(ElementDeclaration))
+	if .WIDTH in properties {
+		if (!reparented) {
+			currentElement.dimensions.x = currentTransitionData.boundingBox.width
+			config.layout.sizing.width = sizingFixed(currentTransitionData.boundingBox.width)
+		} else {
+			boundingBox.width = currentTransitionData.boundingBox.width
+		}
+	}
+	if .HEIGHT in properties {
+		if (!reparented) {
+			currentElement.dimensions.y = currentTransitionData.boundingBox.height
+			config.layout.sizing.height = sizingFixed(currentTransitionData.boundingBox.height)
+		} else {
+			boundingBox.height = currentTransitionData.boundingBox.height
+		}
+	}
+	if .X in properties {
+		boundingBox.x = currentTransitionData.boundingBox.x
+	}
+	if .Y in properties {
+		boundingBox.y = currentTransitionData.boundingBox.y
+	}
+	if .OVERLAY_COLOR in properties {
+		config.overlayColor = currentTransitionData.overlayColor
+	}
+	if .BACKGROUND_COLOR in properties {
+		config.backgroundColor = currentTransitionData.color
+	}
+	if .BORDER_COLOR in properties {
+		config.border.color = currentTransitionData.borderColor
+	}
+	if .BORDER_WIDTH in properties {
+		config.border.width = currentTransitionData.borderWidth
+	}
 }
 
-get_element_id_with_idx :: proc(id_string: string, idx: u32) -> Element_ID {
-	return hash_string_with_offset(id_string, idx, 0)
+getElementId :: proc(idString: string) -> ElementID {
+	return hashString(idString, 0)
+}
+
+getElementIdWithIdx :: proc(idString: string, idx: u32) -> ElementID {
+	return hashStringWithOffset(idString, idx, 0)
 }
 
 hovered :: proc() -> bool {
-	if s.boolean_warnings.max_elements_exceeded {
+	if s.booleanWarnings.maxElementsExceeded {
 		return false
 	}
-	open_layout_element := get_open_layout_element()
-	if open_layout_element.id == 0 {
-		generate_id_for_anonymous_element(open_layout_element)
-	}
-	for id in array_iter(s.cursor_over_ids) {
-		if open_layout_element.id == id.id {
+	openLayoutElement := getOpenLayoutElement()
+	for id in arrayIter(s.pointerOverIds) {
+		if openLayoutElement.id == id.id {
 			return true
 		}
 	}
@@ -4476,45 +4801,42 @@ hovered :: proc() -> bool {
 }
 
 clicked :: proc() -> bool {
-	return hovered() && s.cursor_info.state == .PRESSED_THIS_FRAME
+	return hovered() && s.pointerInfo.state == .PRESSED_THIS_FRAME
 }
 
-on_hover :: proc(procedure: proc(_: Element_ID, _: Cursor_Data, _: rawptr), user_ptr: rawptr) {
-	if s.boolean_warnings.max_elements_exceeded {
+onHover :: proc(procedure: proc(_: ElementID, _: PointerData, _: rawptr), userPtr: rawptr) {
+	if s.booleanWarnings.maxElementsExceeded {
 		return
 	}
-	open_layout_element := get_open_layout_element()
-	if open_layout_element.id == 0 {
-		generate_id_for_anonymous_element(open_layout_element)
-	}
-	hash_map_item := get_hash_map_item(open_layout_element.id)
-	hash_map_item.on_hover_function = procedure
-	hash_map_item.hover_function_user_ptr = user_ptr
+	openLayoutElement := getOpenLayoutElement()
+	hashMapItem := getHashMapItem(openLayoutElement.id)
+	hashMapItem.onHoverFunction = procedure
+	hashMapItem.hoverFunctionUserPtr = userPtr
 }
 
-cursor_over :: proc(element_id: Element_ID) -> bool {
-	for id in array_iter(s.cursor_over_ids) {
-		if id.id == element_id.id {
+pointerOver :: proc(elementId: ElementID) -> bool {
+	for id in arrayIter(s.pointerOverIds) {
+		if id.id == elementId.id {
 			return true
 		}
 	}
 	return false
 }
 
-get_scroll_container_data :: proc(id: Element_ID) -> Scroll_Container_Data {
-	for &scroll_container_data in array_iter(s.scroll_container_datas) {
-		if scroll_container_data.element_id == id.id {
-			if scroll_container_data.layout_element == nil {
+getScrollContainerData :: proc(id: ElementID) -> ScrollContainerData {
+	for &scrollContainerData in arrayIter(s.scrollContainerDatas) {
+		if scrollContainerData.elementId == id.id {
+			if scrollContainerData.layoutElement == nil {
 				return {}
 			}
-			return Scroll_Container_Data {
-				scroll_position = &scroll_container_data.scroll_position,
+			return ScrollContainerData {
+				scrollPosition = &scrollContainerData.scrollPosition,
 				dimensions = {
-					scroll_container_data.bounding_box.width,
-					scroll_container_data.bounding_box.height,
+					scrollContainerData.boundingBox.width,
+					scrollContainerData.boundingBox.height,
 				},
-				content_dimensions = scroll_container_data.content_size,
-				config = scroll_container_data.layout_element.config.(Element_Declaration).clip,
+				contentDimensions = scrollContainerData.contentSize,
+				config = scrollContainerData.layoutElement.config.(ElementDeclaration).clip,
 				found = true,
 			}
 		}
@@ -4522,125 +4844,216 @@ get_scroll_container_data :: proc(id: Element_ID) -> Scroll_Container_Data {
 	return {}
 }
 
-get_element_data :: proc(id: Element_ID) -> Element_Data {
-	item := get_hash_map_item(id.id)
+getElementData :: proc(id: ElementID) -> ElementData {
+	item := getHashMapItem(id.id)
 	if item == &DEFAULT_LAYOUT_ELEMENT_HASH_MAP_ITEM {
 		return {}
 	}
-	return Element_Data{bounding_box = item.bounding_box, found = true}
+	return ElementData{boundingBox = item.boundingBox, found = true}
 }
 
-set_debug_mode_enabled :: proc(enabled: bool) {
-	s.debug_mode_enabled = enabled
+setDebugModeEnabled :: proc(enabled: bool) {
+	s.debugModeEnabled = enabled
 }
 
-is_debug_mode_enabled :: proc() -> bool {
-	return s.debug_mode_enabled
+isDebugModeEnabled :: proc() -> bool {
+	return s.debugModeEnabled
 }
 
-set_culling_enabled :: proc(enabled: bool) {
-	s.disable_culling = !enabled
+setCullingEnabled :: proc(enabled: bool) {
+	s.disableCulling = !enabled
 }
 
-set_external_scroll_handling_enabled :: proc(enabled: bool) {
-	s.external_scroll_handling_enabled = enabled
+setExternalScrollHandlingEnabled :: proc(enabled: bool) {
+	s.externalScrollHandlingEnabled = enabled
 }
 
-get_max_element_count :: proc() -> int {
-	return s.max_element_count
+getMaxElementCount :: proc() -> int {
+	return s.maxElementCount
 }
 
-set_max_element_count :: proc(max_count: int) -> bool {
+setMaxElementCount :: proc(maxCount: int) -> bool {
 	if s != nil {
-		s.max_element_count = max_count
+		s.maxElementCount = maxCount
 		return true
 	} else {
 		return false
 	}
 }
 
-get_max_measure_text_cache_word_count :: proc() -> int {
-	return s.max_measure_text_cache_word_count
+getMaxMeasureTextCacheWordCount :: proc() -> int {
+	return s.maxMeasureTextCacheWordCount
 }
 
-set_max_measure_text_cache_word_count :: proc(count: int) -> bool {
+setMaxMeasureTextCacheWordCount :: proc(count: int) -> bool {
 	if s != nil {
-		s.max_measure_text_cache_word_count = count
+		s.maxMeasureTextCacheWordCount = count
 		return true
 	} else {
 		return false
 	}
 }
 
-reset_measure_text_cache :: proc() {
-	s.measure_text_hash_map_internal_free_list.len = 0
-	s.measure_text_hash_map.len = 0
-	s.measured_words.len = 0
-	s.measured_words_free_list.len = 0
+resetMeasureTextCache :: proc() {
+	s.measureTextHashMapInternalFreeList.len = 0
+	s.measureTextHashMap.len = 0
+	s.measuredWords.len = 0
+	s.measuredWordsFreeList.len = 0
 
-	for i in 0 ..< s.measure_text_hash_map.cap {
-		s.measure_text_hash_map.items[i] = 0
+	for i in 0 ..< s.measureTextHashMap.cap {
+		s.measureTextHashMap.items[i] = 0
 	}
-	s.measure_text_hash_map_internal.len = 1
+	s.measureTextHashMapInternal.len = 1
 }
 
-@(deferred_none = close_element)
-ui_with_id :: proc(id: Element_ID) -> proc(config: Element_Declaration) -> bool {
-	open_element_with_id(id)
-	return configure_open_element
+@(deferred_none = closeElement)
+uiWithId :: proc(id: ElementID) -> proc(config: ElementDeclaration) -> bool {
+	openElementWithId(id)
+	return configureOpenElement
 }
 
-@(deferred_none = close_element)
-ui_auto_id :: proc() -> proc(config: Element_Declaration) -> bool {
-	open_element()
-	return configure_open_element
+@(deferred_none = closeElement)
+uiAutoId :: proc() -> proc(config: ElementDeclaration) -> bool {
+	openElement()
+	return configureOpenElement
 }
 
-ui :: proc {
-	ui_with_id,
-	ui_auto_id,
+UI :: proc {
+	uiWithId,
+	uiAutoId,
 }
 
-text :: proc(text: string, config: Text_Element_Config) {
-	open_text_element(text, config)
+text :: proc(text: string, config: TextElementConfig) {
+	openTextElement(text, config)
 }
 
-padding_all :: proc(all: f32) -> Padding {
+paddingAll :: proc(all: f32) -> Padding {
 	return {left = all, right = all, top = all, bottom = all}
 }
 
-border_outside :: proc(width: f32) -> Border_Width {
+borderOutside :: proc(width: f32) -> BorderWidth {
 	return {width, width, width, width, 0}
 }
 
-border_all :: proc(width: f32) -> Border_Width {
+borderAll :: proc(width: f32) -> BorderWidth {
 	return {width, width, width, width, width}
 }
 
-corner_radius_all :: proc(radius: f32) -> Corner_Radius {
+cornerRadiusAll :: proc(radius: f32) -> CornerRadius {
 	return {radius, radius, radius, radius}
 }
 
-sizing_fit :: proc(min: f32 = 0, max: f32 = MAX_FLOAT) -> Sizing_Axis {
-	return {.FIT, Sizing_Min_Max{min, max}}
+sizingFit :: proc(min: f32 = 0, max: f32 = MAX_FLOAT) -> SizingAxis {
+	return {.FIT, SizingMinMax{min, max}}
 }
 
-sizing_grow :: proc(min: f32 = 0, max: f32 = MAX_FLOAT) -> Sizing_Axis {
-	return {.GROW, Sizing_Min_Max{min, max}}
+sizingGrow :: proc(min: f32 = 0, max: f32 = MAX_FLOAT) -> SizingAxis {
+	return {.GROW, SizingMinMax{min, max}}
 }
 
-sizing_fixed :: proc(size: f32 = 0) -> Sizing_Axis {
-	return {.FIXED, Sizing_Min_Max{size, size}}
+sizingFixed :: proc(size: f32 = 0) -> SizingAxis {
+	return {.FIXED, SizingMinMax{size, size}}
 }
 
-sizing_percent :: proc(percent: f32 = 0) -> Sizing_Axis {
+sizingPercent :: proc(percent: f32 = 0) -> SizingAxis {
 	return {.PERCENT, Percent(percent)}
 }
 
-id :: proc(label: string, index: u32 = 0) -> Element_ID {
-	return hash_string(label, index)
+id :: proc(label: string, index: u32 = 0) -> ElementID {
+	return hashString(label, index)
 }
 
-id_local :: proc(label: string, index: u32 = 0) -> Element_ID {
-	return hash_string_with_offset(label, index, get_parent_element_id())
+idLocal :: proc(label: string, index: u32 = 0) -> ElementID {
+	return hashStringWithOffset(label, index, getParentElementId())
+}
+
+lerp :: #force_inline proc(from, to, mix: f32) -> f32 {
+	return from + (to - from) * mix
+}
+
+easeOut :: proc(arguments: TransitionCallbackArguments) -> bool {
+	ratio: f32 = 1
+	if arguments.duration > 0 {
+		ratio = min(arguments.elapsedTime / arguments.duration, 1)
+	}
+	inverse := 1.0 - ratio
+	lerpAmount := 1.0 - (inverse * inverse * inverse)
+	if .X in arguments.properties {
+		arguments.current.boundingBox.x = lerp(
+			arguments.initial.boundingBox.x,
+			arguments.target.boundingBox.x,
+			lerpAmount,
+		)
+	}
+	if .Y in arguments.properties {
+		arguments.current.boundingBox.y = lerp(
+			arguments.initial.boundingBox.y,
+			arguments.target.boundingBox.y,
+			lerpAmount,
+		)
+	}
+	if .WIDTH in arguments.properties {
+		arguments.current.boundingBox.width = lerp(
+			arguments.initial.boundingBox.width,
+			arguments.target.boundingBox.width,
+			lerpAmount,
+		)
+	}
+	if .HEIGHT in arguments.properties {
+		arguments.current.boundingBox.height = lerp(
+			arguments.initial.boundingBox.height,
+			arguments.target.boundingBox.height,
+			lerpAmount,
+		)
+	}
+	if .BACKGROUND_COLOR in arguments.properties {
+		arguments.current.color = Color {
+			lerp(arguments.initial.color.r, arguments.target.color.r, lerpAmount),
+			lerp(arguments.initial.color.g, arguments.target.color.g, lerpAmount),
+			lerp(arguments.initial.color.b, arguments.target.color.b, lerpAmount),
+			lerp(arguments.initial.color.a, arguments.target.color.a, lerpAmount),
+		}
+	}
+	if .OVERLAY_COLOR in arguments.properties {
+		arguments.current.overlayColor = Color {
+			lerp(arguments.initial.overlayColor.r, arguments.target.overlayColor.r, lerpAmount),
+			lerp(arguments.initial.overlayColor.g, arguments.target.overlayColor.g, lerpAmount),
+			lerp(arguments.initial.overlayColor.b, arguments.target.overlayColor.b, lerpAmount),
+			lerp(arguments.initial.overlayColor.a, arguments.target.overlayColor.a, lerpAmount),
+		}
+	}
+	if .BORDER_COLOR in arguments.properties {
+		arguments.current.borderColor = Color {
+			lerp(arguments.initial.borderColor.r, arguments.target.borderColor.r, lerpAmount),
+			lerp(arguments.initial.borderColor.g, arguments.target.borderColor.g, lerpAmount),
+			lerp(arguments.initial.borderColor.b, arguments.target.borderColor.b, lerpAmount),
+			lerp(arguments.initial.borderColor.a, arguments.target.borderColor.a, lerpAmount),
+		}
+	}
+	if .BORDER_WIDTH in arguments.properties {
+		arguments.current.borderWidth = BorderWidth {
+			lerp(
+				arguments.initial.borderWidth.left,
+				arguments.target.borderWidth.left,
+				lerpAmount,
+			),
+			lerp(
+				arguments.initial.borderWidth.right,
+				arguments.target.borderWidth.right,
+				lerpAmount,
+			),
+			lerp(arguments.initial.borderWidth.top, arguments.target.borderWidth.top, lerpAmount),
+			lerp(
+				arguments.initial.borderWidth.bottom,
+				arguments.target.borderWidth.bottom,
+				lerpAmount,
+			),
+			lerp(
+				arguments.initial.borderWidth.betweenChildren,
+				arguments.target.borderWidth.betweenChildren,
+				lerpAmount,
+			),
+		}
+	}
+	return ratio >= 1
 }
